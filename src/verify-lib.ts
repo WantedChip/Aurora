@@ -185,10 +185,12 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
 
     // Test programmatically navigating to room
     router.navigateToRoom('boids', { seed: '39A2FF', boidCount: 2000 }, undefined, true);
+    await new Promise(r => setTimeout(r, 20));
     const roomRoute = router.getCurrentRoute();
 
     // Test navigating back to gallery
     router.navigateToGallery(true);
+    await new Promise(r => setTimeout(r, 20));
     const galleryRoute = router.getCurrentRoute();
 
     unsubscribe();
@@ -273,5 +275,58 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
+  // 9. Verify RoomViewer Mounting & Teardown Lifecycle
+  try {
+    const { RoomViewer } = await import('./room-viewer');
+    const testApp = document.createElement('div');
+    testApp.id = 'test-room-app';
+    document.body.appendChild(testApp);
+
+    const viewer = new RoomViewer();
+    const testRoute: RouteState = {
+      roomId: 'flow-field',
+      params: { seed: '39A2FF', particleCount: '2500' },
+      rawQuery: 'seed=39A2FF&particleCount=2500',
+      path: '/flow-field',
+      hash: '#/flow-field?seed=39A2FF&particleCount=2500',
+    };
+
+    await viewer.mount(testApp, 'flow-field', testRoute);
+
+    const isMounted = viewer.isSimulationMounted();
+    const meta = viewer.getMetadata();
+    const params = viewer.getParams();
+    const canvas = viewer.getCanvas();
+    const hud = viewer.getHudBar();
+
+    // Test parameter dynamic update
+    viewer.updateParams({ particleCount: 4000 });
+    const updatedParams = viewer.getParams();
+
+    // Test clean destruction
+    viewer.destroy();
+    const isDestroyed = !viewer.isSimulationMounted() && testApp.children.length === 0;
+
+    testApp.remove();
+
+    const roomViewerPassed =
+      isMounted &&
+      meta?.id === 'flow-field' &&
+      params.seed === '#39A2FF' &&
+      updatedParams.particleCount === 4000 &&
+      canvas instanceof HTMLCanvasElement &&
+      hud instanceof HTMLElement &&
+      isDestroyed;
+
+    results.push({
+      passed: roomViewerPassed,
+      module: 'room-viewer.ts',
+      details: `RoomViewer mounted flow-field (#39A2FF), verified canvas buffer & HUD, updated params (particleCount=4000), and completed clean teardown.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'room-viewer.ts', details: String(err) });
+  }
+
   return results;
 }
+

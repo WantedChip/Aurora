@@ -1,0 +1,497 @@
+/**
+ * Aurora Room Viewport & In-Room Shell Styles
+ * Aesthetic Direction: Obsidian Archival Minimal
+ */
+
+/* ==========================================================================
+   Room Viewport Container & Canvas Host
+   ========================================================================== */
+
+.room-viewport-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-void);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.room-canvas-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  z-index: 1;
+}
+
+.room-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: auto;
+}
+
+/* ==========================================================================
+   Hardware Capability Inspection Banner (WebGPU Fallback Notice)
+   ========================================================================== */
+
+.room-gpu-banner {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  max-width: calc(100vw - 32px);
+  width: max-content;
+  background: rgba(24, 28, 38, 0.94);
+  backdrop-filter: var(--backdrop-blur-hud);
+  -webkit-backdrop-filter: var(--backdrop-blur-hud);
+  border: 1px solid rgba(255, 184, 0, 0.35);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dock), 0 0 16px rgba(255, 184, 0, 0.15);
+  animation: roomBannerSlideDown 360ms var(--ease-out-expo) forwards;
+  transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+}
+
+@keyframes roomBannerSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.room-gpu-banner.closing {
+  opacity: 0;
+  transform: translate(-50%, -12px);
+  pointer-events: none;
+}
+
+.room-gpu-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 184, 0, 0.15);
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.room-gpu-banner-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+}
+
+.room-gpu-banner-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: var(--font-sans);
+}
+
+.room-gpu-banner-desc {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+}
+
+.room-gpu-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+  margin-left: var(--space-2);
+  flex-shrink: 0;
+}
+
+.room-gpu-banner-dismiss:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.10);
+}
+
+/* ==========================================================================
+   Room Loading Overlay & Spinner
+   ========================================================================== */
+
+.room-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-void);
+  transition: opacity 300ms var(--ease-out-expo);
+  pointer-events: all;
+}
+
+.room-loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.room-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.room-loading-spinner-ring {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-top-color: var(--accent-cyan);
+  border-right-color: var(--accent-mint);
+  animation: roomSpinnerRotate 900ms linear infinite;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+}
+
+@keyframes roomSpinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.room-loading-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.room-loading-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+  letter-spacing: var(--tracking-badge);
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+
+.room-loading-title {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-2);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.room-loading-status {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-code);
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Room Error Placard & Recovery Overlay
+   ========================================================================== */
+
+.room-error-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 10, 13, 0.92);
+  backdrop-filter: var(--backdrop-blur-modal);
+  -webkit-backdrop-filter: var(--backdrop-blur-modal);
+  padding: var(--space-4);
+}
+
+.room-error-card {
+  max-width: 480px;
+  width: 100%;
+  background: var(--bg-surface-1);
+  border: 1px solid rgba(255, 51, 102, 0.35);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-dock), 0 0 32px rgba(255, 51, 102, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: left;
+  animation: roomErrorCardIn 260ms var(--ease-out-expo) forwards;
+}
+
+@keyframes roomErrorCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.room-error-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.room-error-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--accent-crimson);
+  background: rgba(255, 51, 102, 0.12);
+  border: 1px solid rgba(255, 51, 102, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+
+.room-error-title {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-3);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.room-error-message {
+  font-family: var(--font-sans);
+  font-size: var(--text-body-reg);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  word-break: break-word;
+}
+
+.room-error-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.room-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle-2);
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  cursor: pointer;
+}
+
+.room-btn-secondary:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-3);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.room-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--bg-void);
+  background: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  cursor: pointer;
+}
+
+.room-btn-primary:hover {
+  background: #33f3ff;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   In-Room Floating Top HUD Bar
+   ========================================================================== */
+
+.room-hud-bar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background: rgba(17, 20, 28, 0.88);
+  backdrop-filter: var(--backdrop-blur-hud);
+  -webkit-backdrop-filter: var(--backdrop-blur-hud);
+  border: 1px solid var(--border-subtle-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dock);
+  transition: opacity var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.room-hud-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.room-hud-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 32px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle-2);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  cursor: pointer;
+}
+
+.room-hud-back:hover {
+  background: var(--bg-surface-3);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.room-hud-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+}
+
+.room-hud-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.room-hud-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.room-hud-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-body-lg);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.room-hud-category-pill {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  background: var(--bg-surface-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.room-hud-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.room-hud-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+  color: var(--text-muted);
+  background: var(--bg-surface-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.room-hud-seed-chip {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+  color: var(--accent-mint);
+  background: rgba(0, 255, 157, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 255, 157, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .room-hud-bar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    padding: var(--space-2);
+  }
+
+  .room-hud-category-pill {
+    display: none;
+  }
+
+  .room-gpu-banner {
+    top: 60px;
+    padding: var(--space-2) var(--space-3);
+    font-size: 11px;
+  }
+
+  .room-hud-title {
+    font-size: var(--text-body-reg);
+  }
+}

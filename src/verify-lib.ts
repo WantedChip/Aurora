@@ -303,6 +303,21 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     viewer.updateParams({ particleCount: 4000 });
     const updatedParams = viewer.getParams();
 
+    // Test seed randomization
+    await viewer.randomizeSeed();
+    const randomizedParams = viewer.getParams();
+    const isSeedChanged = randomizedParams.seed !== '#39A2FF' && randomizedParams.seed.startsWith('#');
+
+    // Test reset defaults
+    await viewer.resetDefaults();
+    const resetParams = viewer.getParams();
+    const isReset = resetParams.particleCount === meta?.defaultParams.particleCount;
+
+    // Test toast notification display
+    viewer.showToast('Test Starlight Toast');
+    const toast = testApp.querySelector('.room-toast');
+    const isToastRendered = toast !== null && toast.textContent?.includes('Test Starlight Toast');
+
     // Test clean destruction
     viewer.destroy();
     const isDestroyed = !viewer.isSimulationMounted() && testApp.children.length === 0;
@@ -314,14 +329,17 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       meta?.id === 'flow-field' &&
       params.seed === '#39A2FF' &&
       updatedParams.particleCount === 4000 &&
+      isSeedChanged &&
+      isReset &&
+      isToastRendered &&
       canvas instanceof HTMLCanvasElement &&
       hud instanceof HTMLElement &&
       isDestroyed;
 
     results.push({
-      passed: roomViewerPassed,
+      passed: Boolean(roomViewerPassed),
       module: 'room-viewer.ts',
-      details: `RoomViewer mounted flow-field (#39A2FF), verified canvas buffer & HUD, updated params (particleCount=4000), and completed clean teardown.`,
+      details: `RoomViewer mounted flow-field, verified HUD buttons & toast notification, randomized seed (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), and completed clean teardown.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'room-viewer.ts', details: String(err) });

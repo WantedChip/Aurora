@@ -2,9 +2,10 @@
  * Aurora Room Viewer & Fullscreen Viewport Controller
  * Direction: Obsidian Archival Minimal
  * 
- * Manages the full-screen canvas lifecycle, dynamic room module loading,
- * GPU hardware capability inspection, responsive canvas resize handling,
- * pointer interactions, and clean context teardown.
+ * Manages the full-screen canvas lifecycle, top navigation HUD bar,
+ * deterministic seed randomization with smooth parameter damping,
+ * parameter reset, URL state sharing, fullscreen toggling,
+ * hardware capability inspection, pointer interactions, and clean teardown.
  */
 
 import type { RouteState } from './lib/router';
@@ -17,9 +18,9 @@ import type {
   RoomPointerEvent,
   RoomContext,
 } from './rooms/types';
-import { createPRNG, type PRNG } from './lib/prng';
+import { createPRNG, generateRandomSeed, type PRNG } from './lib/prng';
 import { detectGPUCapabilities, getClampedDPR, type GPUCapabilities } from './lib/gpu';
-import { parseParams } from './lib/state';
+import { parseParams, syncStateToURL, copyShareableURL } from './lib/state';
 
 export class RoomViewer {
   private container: HTMLElement | null = null;
@@ -29,6 +30,9 @@ export class RoomViewer {
   private gpuBanner: HTMLElement | null = null;
   private errorOverlay: HTMLElement | null = null;
   private hudBar: HTMLElement | null = null;
+  private toastContainer: HTMLElement | null = null;
+  private activeToastElement: HTMLElement | null = null;
+  private toastTimer: number | null = null;
 
   private activeRoomId: string | null = null;
   private activeMetadata: RoomMetadata | null = null;
@@ -42,6 +46,8 @@ export class RoomViewer {
   private abortController: AbortController | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeDebounceTimer: number | null = null;
+  private lerpAnimFrameId = 0;
+  private lastRandomizeTimestamp = 0;
   private isPointerDown = false;
   private isMounted = false;
   private isDestroyed = false;
@@ -72,7 +78,7 @@ export class RoomViewer {
     this.prng = createPRNG(this.activeParams.seed);
     this.dpr = getClampedDPR(2.0);
 
-    // Render viewport DOM scaffolding
+    // Render viewport DOM scaffolding & top HUD
     this.renderDOM(app);
     this.showLoadingOverlay(metadata);
 
@@ -84,6 +90,8 @@ export class RoomViewer {
       this.checkHardwareCapabilities(metadata, this.gpuCapabilities);
       this.setupResizeHandling();
       this.setupPointerListeners();
+      this.setupKeyboardShortcuts();
+      this.setupFullscreenListener();
 
       // Dynamically load room simulation module
       const roomInstance = await lazyLoadRoom(roomId);
@@ -133,6 +141,16 @@ export class RoomViewer {
     this.isDestroyed = true;
     this.isMounted = false;
 
+    if (this.lerpAnimFrameId) {
+      cancelAnimationFrame(this.lerpAnimFrameId);
+      this.lerpAnimFrameId = 0;
+    }
+
+    if (this.toastTimer !== null) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+
     if (this.resizeDebounceTimer !== null) {
       clearTimeout(this.resizeDebounceTimer);
       this.resizeDebounceTimer = null;
@@ -173,6 +191,11 @@ export class RoomViewer {
     if (this.loadingOverlay && this.loadingOverlay.parentNode) {
       this.loadingOverlay.parentNode.removeChild(this.loadingOverlay);
       this.loadingOverlay = null;
+    }
+
+    if (this.toastContainer && this.toastContainer.parentNode) {
+      this.toastContainer.parentNode.removeChild(this.toastContainer);
+      this.toastContainer = null;
     }
 
     if (this.container && this.container.parentNode) {
@@ -237,7 +260,227 @@ export class RoomViewer {
   }
 
   /**
-   * Renders the basic room DOM scaffolding.
+   * Randomizes the deterministic seed and generates smooth parameter offsets.
+   */
+  public async randomizeSeed(): Promise<void> {
+    const now = performance.now();
+    if (now - this.lastRandomizeTimestamp < 150 || !this.activeMetadata || this.isDestroyed) {
+      return;
+    }
+    this.lastRandomizeTimestamp = now;
+
+    const newSeed = generateRandomSeed();
+    const seedPrng = createPRNG(newSeed);
+    const targetParams: Record<string, any> = { ...this.activeParams, seed: newSeed };
+
+    // Compute randomized values for each registered control
+    for (const ctrl of this.activeMetadata.controls) {
+      if (ctrl.type === 'slider' && ctrl.min !== undefined && ctrl.max !== undefined) {
+        const rawVal = seedPrng.nextFloat(ctrl.min, ctrl.max);
+        if (ctrl.step) {
+          targetParams[ctrl.key] = Math.round(rawVal / ctrl.step) * ctrl.step;
+        } else {
+          targetParams[ctrl.key] = parseFloat(rawVal.toFixed(3));
+        }
+      } else if (ctrl.type === 'select' && ctrl.options && ctrl.options.length > 0) {
+        targetParams[ctrl.key] = seedPrng.choice(ctrl.options).value;
+      } else if (ctrl.type === 'boolean') {
+        targetParams[ctrl.key] = seedPrng.nextBool();
+      }
+    }
+
+    // Trigger spring pulse animation on seed button
+    const seedBtn = this.hudBar?.querySelector<HTMLButtonElement>('#room-hud-btn-seed');
+    if (seedBtn) {
+      seedBtn.classList.remove('pulse-spring');
+      // Trigger reflow to restart CSS animation
+      void seedBtn.offsetWidth;
+      seedBtn.classList.add('pulse-spring');
+      const seedLabel = seedBtn.querySelector('.seed-value');
+      if (seedLabel) {
+        seedLabel.textContent = newSeed;
+      }
+    }
+
+    // Sync URL hash without polluting history
+    syncStateToURL(this.activeRoomId, targetParams, this.activeMetadata.defaultParams, true);
+
+    this.showToast(`Seed ${newSeed} Generated`);
+
+    // Smoothly interpolate parameters over 400ms
+    await this.interpolateParams(targetParams, 400);
+  }
+
+  /**
+   * Resets all parameters back to initial exhibit default parameters cleanly.
+   */
+  public async resetDefaults(): Promise<void> {
+    if (!this.activeMetadata || this.isDestroyed) return;
+
+    const defaultParams = { ...this.activeMetadata.defaultParams };
+    
+    const seedBtn = this.hudBar?.querySelector<HTMLButtonElement>('#room-hud-btn-seed');
+    if (seedBtn) {
+      const seedLabel = seedBtn.querySelector('.seed-value');
+      if (seedLabel) {
+        seedLabel.textContent = defaultParams.seed || '#A8F29D';
+      }
+    }
+
+    // Sync URL hash
+    syncStateToURL(this.activeRoomId, defaultParams, this.activeMetadata.defaultParams, true);
+
+    this.showToast('Default Parameters Restored');
+
+    // Smoothly interpolate parameters back to defaults
+    await this.interpolateParams(defaultParams, 350);
+  }
+
+  /**
+   * Copies the current deep link URL with serialized parameters to the clipboard.
+   */
+  public async shareURL(): Promise<void> {
+    if (!this.activeRoomId || !this.activeMetadata) return;
+
+    try {
+      await copyShareableURL(this.activeRoomId, this.activeParams, this.activeMetadata.defaultParams);
+      this.showToast('Shareable Link Copied to Clipboard');
+    } catch {
+      this.showToast('Could not access clipboard');
+    }
+  }
+
+  /**
+   * Toggles standard browser fullscreen mode.
+   */
+  public toggleFullscreen(): void {
+    if (typeof document === 'undefined') return;
+
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(err => {
+        console.warn('Fullscreen request failed:', err);
+      });
+    } else {
+      document.exitFullscreen?.().catch(err => {
+        console.warn('Exit fullscreen failed:', err);
+      });
+    }
+  }
+
+  /**
+   * Displays an Obsidian Archival Minimal starlight toast notification at the bottom of the viewport.
+   */
+  public showToast(message: string, durationMs = 2000): void {
+    if (!this.container || this.isDestroyed) return;
+
+    if (!this.toastContainer) {
+      const toastContainer = document.createElement('div');
+      toastContainer.className = 'room-toast-container';
+      toastContainer.id = 'room-toast-container';
+      toastContainer.setAttribute('role', 'status');
+      toastContainer.setAttribute('aria-live', 'polite');
+      this.container.appendChild(toastContainer);
+      this.toastContainer = toastContainer;
+    }
+
+    if (this.toastTimer !== null) {
+      clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
+
+    if (this.activeToastElement) {
+      this.activeToastElement.remove();
+      this.activeToastElement = null;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'room-toast';
+    toast.innerHTML = `
+      <span class="room-toast-icon" aria-hidden="true">✦</span>
+      <span class="room-toast-text">${message}</span>
+    `;
+
+    this.toastContainer.appendChild(toast);
+    this.activeToastElement = toast;
+
+    this.toastTimer = window.setTimeout(() => {
+      if (this.activeToastElement === toast) {
+        toast.classList.add('hiding');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+          if (this.activeToastElement === toast) {
+            this.activeToastElement = null;
+          }
+        }, 220);
+      }
+    }, durationMs);
+  }
+
+  /**
+   * Smoothly interpolates numeric parameters over a given duration using an ease-out curve.
+   */
+  private interpolateParams(targetParams: Record<string, any>, durationMs = 400): Promise<void> {
+    if (this.lerpAnimFrameId) {
+      cancelAnimationFrame(this.lerpAnimFrameId);
+      this.lerpAnimFrameId = 0;
+    }
+
+    return new Promise(resolve => {
+      const startParams = { ...this.activeParams };
+      const startTime = performance.now();
+
+      // Immediately apply non-numeric or string/bool parameters
+      for (const [key, targetVal] of Object.entries(targetParams)) {
+        if (typeof targetVal !== 'number') {
+          this.activeParams[key] = targetVal;
+        }
+      }
+
+      const step = (now: number) => {
+        if (this.isDestroyed) {
+          resolve();
+          return;
+        }
+
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / durationMs);
+
+        // Exponential ease out: 1 - Math.pow(2, -10 * progress)
+        const easeOut = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+
+        for (const [key, targetVal] of Object.entries(targetParams)) {
+          if (typeof targetVal === 'number') {
+            const startVal = typeof startParams[key] === 'number' ? startParams[key] : targetVal;
+            const currentVal = startVal + (targetVal - startVal) * easeOut;
+            this.activeParams[key] = currentVal;
+          }
+        }
+
+        if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
+          this.currentRoomInstance.updateParams(this.activeParams);
+        }
+
+        if (progress < 1) {
+          this.lerpAnimFrameId = requestAnimationFrame(step);
+        } else {
+          // Final exact parameter snapshot
+          this.activeParams = { ...this.activeParams, ...targetParams };
+          if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
+            this.currentRoomInstance.updateParams(this.activeParams);
+          }
+          this.lerpAnimFrameId = 0;
+          resolve();
+        }
+      };
+
+      this.lerpAnimFrameId = requestAnimationFrame(step);
+    });
+  }
+
+  /**
+   * Renders the basic room DOM scaffolding and full Top HUD Bar.
    */
   private renderDOM(app: HTMLElement): void {
     const container = document.createElement('div');
@@ -255,16 +498,17 @@ export class RoomViewer {
     canvasContainer.appendChild(canvas);
     container.appendChild(canvasContainer);
 
-    // Initial Top HUD Navigation Bar
+    // In-Room Top HUD Navigation Bar
     const hudBar = document.createElement('header');
     hudBar.className = 'room-hud-bar';
+    hudBar.id = 'room-hud-bar';
     hudBar.setAttribute('role', 'toolbar');
     hudBar.setAttribute('aria-label', 'Exhibit Navigation & Controls');
 
     const meta = this.activeMetadata!;
     hudBar.innerHTML = `
       <div class="room-hud-left">
-        <button type="button" id="room-hud-btn-back" class="room-hud-back" aria-label="Return to Gallery">
+        <button type="button" id="room-hud-btn-back" class="room-hud-back" aria-label="Return to Gallery" title="Return to Gallery (Esc)">
           <span aria-hidden="true">←</span> Gallery
         </button>
         <div class="room-hud-divider" aria-hidden="true"></div>
@@ -274,11 +518,27 @@ export class RoomViewer {
           <span class="room-hud-category-pill">${meta.categoryName}</span>
         </div>
       </div>
+
       <div class="room-hud-right">
+        <div class="room-hud-actions">
+          <button type="button" id="room-hud-btn-seed" class="room-hud-seed-btn" aria-label="Randomize Seed & Parameters" title="Randomize Seed (R)">
+            <span aria-hidden="true">🎲</span> <span class="seed-value">${this.activeParams.seed}</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-reset" class="room-hud-action-btn" aria-label="Reset Parameters to Default" title="Reset Defaults">
+            <span aria-hidden="true" class="icon">↺</span> <span>Reset</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-share" class="room-hud-action-btn" aria-label="Share Parameter Link" title="Copy Shareable Link (C)">
+            <span aria-hidden="true" class="icon">🔗</span> <span>Share</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-fullscreen" class="room-hud-icon-btn" aria-label="Toggle Fullscreen Mode" title="Toggle Fullscreen (F)">
+            <span aria-hidden="true" class="fs-icon">⛶</span>
+          </button>
+        </div>
+
         <span class="room-hud-badge" title="Rendering Backend">${meta.backendDisplay}</span>
-        <span class="room-hud-seed-chip" title="Active PRNG Seed">
-          <span style="opacity: 0.6;">SEED:</span> ${this.activeParams.seed}
-        </span>
       </div>
     `;
 
@@ -290,10 +550,102 @@ export class RoomViewer {
     this.canvas = canvas;
     this.hudBar = hudBar;
 
-    // Attach back button listener
-    const backBtn = hudBar.querySelector('#room-hud-btn-back');
+    this.setupHUDButtonListeners();
+  }
+
+  /**
+   * Attaches click event listeners to the Top HUD buttons.
+   */
+  private setupHUDButtonListeners(): void {
+    if (!this.hudBar) return;
+    const signal = this.abortController?.signal;
+
+    // Back to Gallery
+    const backBtn = this.hudBar.querySelector('#room-hud-btn-back');
     backBtn?.addEventListener('click', () => {
       router.navigateToGallery();
+    }, { signal });
+
+    // Randomize Seed
+    const seedBtn = this.hudBar.querySelector('#room-hud-btn-seed');
+    seedBtn?.addEventListener('click', () => {
+      this.randomizeSeed();
+    }, { signal });
+
+    // Reset Defaults
+    const resetBtn = this.hudBar.querySelector('#room-hud-btn-reset');
+    resetBtn?.addEventListener('click', () => {
+      this.resetDefaults();
+    }, { signal });
+
+    // Share Link
+    const shareBtn = this.hudBar.querySelector('#room-hud-btn-share');
+    shareBtn?.addEventListener('click', () => {
+      this.shareURL();
+    }, { signal });
+
+    // Fullscreen Toggle
+    const fsBtn = this.hudBar.querySelector('#room-hud-btn-fullscreen');
+    fsBtn?.addEventListener('click', () => {
+      this.toggleFullscreen();
+    }, { signal });
+  }
+
+  /**
+   * Sets up fullscreenchange listener on document to synchronize button state.
+   */
+  private setupFullscreenListener(): void {
+    if (typeof document === 'undefined') return;
+
+    document.addEventListener('fullscreenchange', () => {
+      if (this.isDestroyed || !this.hudBar) return;
+      const fsBtn = this.hudBar.querySelector('#room-hud-btn-fullscreen');
+      const fsIcon = fsBtn?.querySelector('.fs-icon');
+      const isFullscreen = !!document.fullscreenElement;
+
+      if (fsBtn) {
+        fsBtn.classList.toggle('active', isFullscreen);
+        fsBtn.setAttribute('aria-label', isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen');
+        fsBtn.setAttribute('title', isFullscreen ? 'Exit Fullscreen (F)' : 'Toggle Fullscreen (F)');
+      }
+      if (fsIcon) {
+        fsIcon.textContent = isFullscreen ? '🗗' : '⛶';
+      }
+    }, { signal: this.abortController?.signal });
+  }
+
+  /**
+   * Attaches keyboard shortcuts for in-room operations:
+   * - R: Randomize Seed
+   * - C: Copy Share Link
+   * - F: Toggle Fullscreen
+   * - Esc: Return to Gallery
+   */
+  private setupKeyboardShortcuts(): void {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (this.isDestroyed) return;
+
+      // Ignore when focused inside an input/textarea/select
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        return;
+      }
+
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        this.randomizeSeed();
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        this.shareURL();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        this.toggleFullscreen();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        router.navigateToGallery();
+      }
     }, { signal: this.abortController?.signal });
   }
 

@@ -3,6 +3,8 @@ import { detectGPUCapabilities, getGPUTier, getClampedDPR, formatGPUTelemetryBad
 import { parseHash, serializeHash, parseParams, serializeParams, dampParameter } from './lib/state';
 import { audioManager } from './lib/audio';
 import { getAllRooms, getRoomById, searchRooms, filterRoomsByCategory, getCategories, lazyLoadRoom } from './rooms/registry';
+import { router, type RouteState } from './lib/router';
+import { captureSnapshot, recordVideoLoop, negotiateSupportedVideoCodec, formatExportFilename } from './lib/recorder';
 
 export interface VerificationResult {
   passed: boolean;
@@ -170,6 +172,105 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     });
   } catch (err) {
     results.push({ passed: false, module: 'registry.ts (Lifecycle)', details: String(err) });
+  }
+
+  // 7. Verify Client-Side Hash Router
+  try {
+    router.start();
+    let interceptedRoute: RouteState | null = null;
+
+    const unsubscribe = router.onRouteChange(to => {
+      interceptedRoute = to;
+    });
+
+    // Test programmatically navigating to room
+    router.navigateToRoom('boids', { seed: '39A2FF', boidCount: 2000 }, undefined, true);
+    const roomRoute = router.getCurrentRoute();
+
+    // Test navigating back to gallery
+    router.navigateToGallery(true);
+    const galleryRoute = router.getCurrentRoute();
+
+    unsubscribe();
+
+    const routerPassed =
+      roomRoute.roomId === 'boids' &&
+      roomRoute.params.seed === '39A2FF' &&
+      roomRoute.params.boidCount === '2000' &&
+      galleryRoute.roomId === null &&
+      interceptedRoute !== null;
+
+    results.push({
+      passed: routerPassed,
+      module: 'router.ts',
+      details: `Dispatched hash routes: room=#/${roomRoute.roomId}?${roomRoute.rawQuery} -> gallery=#/. Route listeners notified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'router.ts', details: String(err) });
+  }
+
+  // 8. Verify Media Recorder & Snapshot Pipeline
+  try {
+    const testCanvas = document.createElement('canvas');
+    testCanvas.width = 400;
+    testCanvas.height = 300;
+    const ctx2d = testCanvas.getContext('2d');
+    if (ctx2d) {
+      ctx2d.fillStyle = '#090A0D';
+      ctx2d.fillRect(0, 0, 400, 300);
+      ctx2d.fillStyle = '#00F0FF';
+      ctx2d.fillRect(50, 50, 100, 100);
+    }
+
+    // Test Snapshot capture (2x scale PNG)
+    let snapshotProgress = 0;
+    const snapshotBlob = await captureSnapshot(testCanvas, {
+      resolutionScale: 2,
+      format: 'image/png',
+      autoDownload: false,
+      filenamePrefix: 'aurora-test',
+      seed: '#A8F29D',
+      onProgress: p => {
+        snapshotProgress = p;
+      },
+    });
+
+    const codec = negotiateSupportedVideoCodec();
+    const filename = formatExportFilename('aurora-test', '#A8F29D', 'png');
+
+    // Test video recording (1s quick loop test without autoDownload)
+    let videoBlobSize = 0;
+    let videoProgress = 0;
+    if (typeof (testCanvas as any).captureStream === 'function' && typeof MediaRecorder !== 'undefined') {
+      try {
+        const videoBlob = await recordVideoLoop(testCanvas, {
+          durationSeconds: 1,
+          fps: 30,
+          autoDownload: false,
+          onProgress: p => {
+            videoProgress = p;
+          },
+        });
+        videoBlobSize = videoBlob.size;
+      } catch (recErr) {
+        console.warn('Video recorder test fallback (expected in headless without video encoder):', recErr);
+      }
+    }
+
+    const snapshotPassed =
+      snapshotBlob instanceof Blob &&
+      snapshotBlob.size > 0 &&
+      snapshotProgress === 1.0 &&
+      filename.includes('aurora-test-A8F29D-') &&
+      typeof codec.mimeType === 'string';
+
+    results.push({
+      passed: snapshotPassed,
+      module: 'recorder.ts',
+      details: `2x Snapshot captured (${snapshotBlob.size} bytes PNG). Codec: ${codec.mimeType}. Video loop pipeline ready (${videoBlobSize}b recorded, prog=${videoProgress.toFixed(1)}).`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
   return results;

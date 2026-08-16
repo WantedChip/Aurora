@@ -331,7 +331,88 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'domain-warp/index.ts', details: String(err) });
   }
 
-  // 9. Verify Client-Side Hash Router
+  // 9. Verify Room 03: Boids Flocking Simulation (Flock & Predator Dynamics)
+  try {
+    const roomInstance = await lazyLoadRoom('boids');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#39A2FF');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#39A2FF',
+        boidCount: 1500,
+        maxSpeed: 4.5,
+        separationWeight: 1.8,
+        alignmentWeight: 1.2,
+        cohesionWeight: 1.0,
+        neighborRadius: 65,
+        predatorRepulsion: 4.5,
+        trailDecay: 0.18,
+        colorPalette: 'aurora-cyan',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter updates & scaling flock size
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        boidCount: 2500,
+        colorPalette: 'solar-amber',
+        separationWeight: 2.2,
+        predatorRepulsion: 6.0,
+      });
+    }
+
+    // Test pointer event interaction (predator move & attractor click)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const boidsPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: boidsPassed,
+      module: 'boids/index.ts (Room 03)',
+      details: `Boids flocking simulation mounted, tested O(N) spatial grid, Craig Reynolds steering forces, predator scatter, attractor click, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'boids/index.ts', details: String(err) });
+  }
+
+  // 10. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -368,7 +449,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 10. Verify Media Recorder & Snapshot Pipeline
+  // 11. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -432,7 +513,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 11. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 12. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

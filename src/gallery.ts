@@ -8,10 +8,12 @@ import { ROOM_CATALOG } from './rooms/registry';
 import { generateRandomSeed } from './lib/prng';
 import { detectGPUCapabilities, formatGPUTelemetryBadge } from './lib/gpu';
 import { router } from './lib/router';
+import { HeroSimulation } from './lib/hero-sim';
 
 export class GalleryView {
   private container: HTMLElement | null = null;
   private lenis: Lenis | null = null;
+  private heroSim: HeroSimulation | null = null;
   private abortController: AbortController | null = null;
   private isModalOpen = false;
 
@@ -24,6 +26,7 @@ export class GalleryView {
 
     this.renderDOM();
     this.setupLenis();
+    this.setupHeroSimulation();
     this.setupEventListeners();
     this.updateTelemetry();
   }
@@ -37,6 +40,11 @@ export class GalleryView {
       this.abortController = null;
     }
 
+    if (this.heroSim) {
+      this.heroSim.destroy();
+      this.heroSim = null;
+    }
+
     if (this.lenis) {
       this.lenis.destroy();
       this.lenis = null;
@@ -46,6 +54,18 @@ export class GalleryView {
       this.container.innerHTML = '';
       this.container = null;
     }
+  }
+
+  /**
+   * Initializes the ambient hero curl-noise simulation canvas.
+   */
+  private setupHeroSimulation(): void {
+    const canvas = document.getElementById('hero-ambient-canvas') as HTMLCanvasElement | null;
+    const heroSection = document.getElementById('hero-section');
+    if (!canvas || !heroSection) return;
+
+    this.heroSim = new HeroSimulation();
+    this.heroSim.mount(canvas, heroSection);
   }
 
   /**

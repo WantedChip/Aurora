@@ -2,6 +2,7 @@ import { createPRNG, hashString, parseSeed, generateRandomSeed } from './lib/prn
 import { detectGPUCapabilities, getGPUTier, getClampedDPR, formatGPUTelemetryBadge } from './lib/gpu';
 import { parseHash, serializeHash, parseParams, serializeParams, dampParameter } from './lib/state';
 import { audioManager } from './lib/audio';
+import { getAllRooms, getRoomById, searchRooms, filterRoomsByCategory, getCategories, lazyLoadRoom } from './rooms/registry';
 
 export interface VerificationResult {
   passed: boolean;
@@ -109,6 +110,66 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     });
   } catch (err) {
     results.push({ passed: false, module: 'audio.ts', details: String(err) });
+  }
+
+  // 5. Verify Room Registry & Search
+  try {
+    const allRooms = getAllRooms();
+    const physarum = getRoomById('physarum');
+    const artLifeRooms = filterRoomsByCategory('art-life');
+    const categories = getCategories();
+    const searchMatch1 = searchRooms('slime mold');
+    const searchMatch2 = searchRooms('turing');
+    const searchEmpty = searchRooms('quantum-nonexistent-tag');
+
+    const registryPassed =
+      allRooms.length === 16 &&
+      physarum?.name === 'Physarum Slime Mold' &&
+      artLifeRooms.length === 6 &&
+      categories.length === 7 &&
+      searchMatch1.some(r => r.id === 'physarum') &&
+      searchMatch2.some(r => r.id === 'reaction-diffusion') &&
+      searchEmpty.length === 0;
+
+    results.push({
+      passed: registryPassed,
+      module: 'registry.ts (Catalog & Search)',
+      details: `16 rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}. 6 Art Life rooms.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'registry.ts', details: String(err) });
+  }
+
+  // 6. Verify Dynamic Room Loader & Lifecycle Mount/Cleanup
+  try {
+    const roomInstance = await lazyLoadRoom('flow-field');
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 200;
+    const container = document.createElement('div');
+    const prng = createPRNG('#A8F29D');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: { seed: '#A8F29D', speed: 1.5 },
+      prng,
+      dpr: 1,
+    });
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    results.push({
+      passed: typeof roomInstance.mount === 'function' && cleanupRan,
+      module: 'registry.ts (Lazy Loader & Lifecycle)',
+      details: `Lazy loaded room instance, mounted to canvas context, and executed cleanup teardown cleanly.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'registry.ts (Lifecycle)', details: String(err) });
   }
 
   return results;

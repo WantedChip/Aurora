@@ -2,11 +2,11 @@
 
 > A client-side, interactive generative art gallery powered by modern web technologies, WebGPU compute shaders, and TSL.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](#tech-stack)
 [![Three.js](https://img.shields.io/badge/Three.js-r171%2B%20WebGPU-black?logo=threedotjs)](#tech-stack)
 [![Vite](https://img.shields.io/badge/Vite-Build%20Tool-646CFF?logo=vite&logoColor=white)](#tech-stack)
-[![Cloudflare Pages](https://img.shields.io/badge/Deploy-Cloudflare%20Pages-F38020?logo=cloudflare&logoColor=white)](#deployment)
+[![Cloudflare Workers](https://img.shields.io/badge/Deploy-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)](#deployment)
 
 ---
 
@@ -213,25 +213,27 @@ Aurora delivers an immersive exhibition interface written in 100% vanilla TypeSc
 
 ## Deployment
 
-Deploy directly to **Cloudflare Pages** with zero configuration:
+Deploy directly to **Cloudflare Workers** (with Workers Static Assets) with zero backend overhead:
 
 ### Method 1: Git Integration (Recommended)
 1. Push your repository to GitHub / GitLab.
-2. In the Cloudflare dashboard, navigate to **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
+2. In the Cloudflare dashboard, navigate to **Workers & Pages** → **Create** → **Workers** → **Connect to Git**.
 3. Configure build settings:
    - **Framework preset**: `Vite`
    - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-4. Deploy. Every push to `main` deploys automatically, with preview deployments for pull requests.
+   - **Deploy directory / Static assets**: `dist`
+4. Deploy. Every push to `main` deploys automatically, with instant global edge caching.
 
 ### Method 2: Cloudflare Wrangler CLI
 ```bash
 # Build the application
 npm run build
 
-# Deploy directly to Cloudflare Pages
-npx wrangler pages deploy dist
+# Deploy directly via Cloudflare Workers Static Assets
+npx wrangler deploy
 ```
+
+*(Configured via `wrangler.jsonc` or `wrangler.toml` pointing `assets = { directory: "./dist" }`)*
 
 ---
 

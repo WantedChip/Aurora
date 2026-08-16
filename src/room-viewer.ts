@@ -1542,7 +1542,7 @@ export class RoomViewer {
    * if WebGPU compute is required by the exhibit but unsupported on the client device.
    */
   private checkHardwareCapabilities(metadata: RoomMetadata, caps: GPUCapabilities): void {
-    const isComputeHeavy = metadata.backend === 'webgpu-compute' || metadata.backend === 'tsl-shader';
+    const isComputeHeavy = metadata.backend === 'webgpu-compute';
     const isFallbackMode = !caps.hasWebGPU || caps.tier !== 'webgpu-full';
 
     if (isComputeHeavy && isFallbackMode) {

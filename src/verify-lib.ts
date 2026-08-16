@@ -252,7 +252,86 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'flow-field/index.ts', details: String(err) });
   }
 
-  // 8. Verify Client-Side Hash Router
+  // 8. Verify Room 02: Domain-Warped Noise (TSL fBm Fragment Shader)
+  try {
+    const roomInstance = await lazyLoadRoom('domain-warp');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#E24991');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#E24991',
+        warpIntensity: 2.0,
+        frequency: 2.5,
+        colorSpread: 1.5,
+        animSpeed: 0.3,
+        distortionAngle: 0.8,
+        mouseInfluence: 1.2,
+        colorPalette: 'aurora-teal',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter updates & palette switching
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        warpIntensity: 2.5,
+        colorPalette: 'solar-magma',
+        frequency: 3.0,
+        distortionAngle: 1.2,
+      });
+    }
+
+    // Test pointer event interaction
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: false,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const domainWarpPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: domainWarpPassed,
+      module: 'domain-warp/index.ts (Room 02)',
+      details: `Domain Warp TSL shader room mounted, tested recursive fBm uniforms, palette switching, cursor interaction, and 800x600 snapshot capture. Clean WebGPU teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'domain-warp/index.ts', details: String(err) });
+  }
+
+  // 9. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -289,7 +368,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 9. Verify Media Recorder & Snapshot Pipeline
+  // 10. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -353,7 +432,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 10. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 11. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

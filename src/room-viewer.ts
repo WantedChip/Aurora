@@ -6,6 +6,7 @@
  * Tweakpane parameter dock & mobile bottom drawer, discrete accessibility steppers,
  * deterministic seed randomization with smooth parameter damping,
  * parameter reset, URL state sharing, fullscreen toggling,
+ * high-resolution snapshot & video loop export modals,
  * 3000ms HUD auto-dimming on idle, keyboard shortcuts, and clean teardown.
  */
 
@@ -24,6 +25,13 @@ import type {
 import { createPRNG, generateRandomSeed, type PRNG } from './lib/prng';
 import { detectGPUCapabilities, getClampedDPR, type GPUCapabilities } from './lib/gpu';
 import { parseParams, syncStateToURL, copyShareableURL } from './lib/state';
+import {
+  captureSnapshot,
+  recordVideoLoop,
+  cancelVideoRecording,
+  isRecordingActive,
+  negotiateSupportedVideoCodec,
+} from './lib/recorder';
 
 export class RoomViewer {
   private container: HTMLElement | null = null;
@@ -40,6 +48,16 @@ export class RoomViewer {
   private toastContainer: HTMLElement | null = null;
   private activeToastElement: HTMLElement | null = null;
   private toastTimer: number | null = null;
+
+  // Export Modals
+  private snapshotModal: HTMLElement | null = null;
+  private videoModal: HTMLElement | null = null;
+  private activeSnapshotScale: 1 | 2 | 4 = 2;
+  private activeSnapshotFormat: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png';
+  private activeVideoDuration = 5;
+  private activeVideoFPS = 60;
+  private isSnapshotInProgress = false;
+  private isRecordingInProgress = false;
 
   private pane: Pane | null = null;
   private activeRoomId: string | null = null;
@@ -163,6 +181,10 @@ export class RoomViewer {
     this.isDestroyed = true;
     this.isMounted = false;
 
+    if (isRecordingActive()) {
+      cancelVideoRecording();
+    }
+
     if (this.lerpAnimFrameId) {
       cancelAnimationFrame(this.lerpAnimFrameId);
       this.lerpAnimFrameId = 0;
@@ -232,6 +254,16 @@ export class RoomViewer {
     if (this.loadingOverlay && this.loadingOverlay.parentNode) {
       this.loadingOverlay.parentNode.removeChild(this.loadingOverlay);
       this.loadingOverlay = null;
+    }
+
+    if (this.snapshotModal && this.snapshotModal.parentNode) {
+      this.snapshotModal.parentNode.removeChild(this.snapshotModal);
+      this.snapshotModal = null;
+    }
+
+    if (this.videoModal && this.videoModal.parentNode) {
+      this.videoModal.parentNode.removeChild(this.videoModal);
+      this.videoModal = null;
     }
 
     if (this.toastContainer && this.toastContainer.parentNode) {
@@ -463,6 +495,72 @@ export class RoomViewer {
   }
 
   /**
+   * Opens the High-Resolution Snapshot Export modal dialogue.
+   */
+  public openSnapshotModal(): void {
+    if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+      this.closeVideoModal();
+    }
+
+    if (!this.snapshotModal) {
+      this.renderSnapshotModal();
+    }
+
+    this.snapshotModal?.classList.remove('hidden');
+    this.snapshotModal?.classList.remove('closing');
+    this.updateSnapshotInfoStrip();
+    this.wakeHUD();
+  }
+
+  /**
+   * Closes the Snapshot modal dialogue.
+   */
+  public closeSnapshotModal(): void {
+    if (!this.snapshotModal || this.snapshotModal.classList.contains('hidden')) return;
+
+    this.snapshotModal.classList.add('closing');
+    setTimeout(() => {
+      this.snapshotModal?.classList.add('hidden');
+      this.snapshotModal?.classList.remove('closing');
+    }, 180);
+  }
+
+  /**
+   * Opens the Video Loop Export modal dialogue.
+   */
+  public openVideoModal(): void {
+    if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+      this.closeSnapshotModal();
+    }
+
+    if (!this.videoModal) {
+      this.renderVideoModal();
+    }
+
+    this.videoModal?.classList.remove('hidden');
+    this.videoModal?.classList.remove('closing');
+    this.wakeHUD();
+  }
+
+  /**
+   * Closes the Video Loop modal dialogue and cancels active recordings if any.
+   */
+  public closeVideoModal(): void {
+    if (!this.videoModal || this.videoModal.classList.contains('hidden')) return;
+
+    if (this.isRecordingInProgress) {
+      cancelVideoRecording();
+      this.isRecordingInProgress = false;
+    }
+
+    this.videoModal.classList.add('closing');
+    setTimeout(() => {
+      this.videoModal?.classList.add('hidden');
+      this.videoModal?.classList.remove('closing');
+    }, 180);
+  }
+
+  /**
    * Displays an Obsidian Archival Minimal starlight toast notification at the bottom of the viewport.
    */
   public showToast(message: string, durationMs = 2000): void {
@@ -625,6 +723,14 @@ export class RoomViewer {
 
           <button type="button" id="room-hud-btn-reset" class="room-hud-action-btn" aria-label="Reset Parameters to Default" title="Reset Defaults">
             <span aria-hidden="true" class="icon">↺</span> <span>Reset</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-snapshot" class="room-hud-action-btn" aria-label="Export High-Resolution Snapshot" title="Export Snapshot (S)">
+            <span aria-hidden="true" class="icon">📸</span> <span>Snapshot</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-record" class="room-hud-action-btn" aria-label="Record Video Loop" title="Record Video Loop (L)">
+            <span aria-hidden="true" class="icon">🎥</span> <span>Loop</span>
           </button>
 
           <button type="button" id="room-hud-btn-share" class="room-hud-action-btn" aria-label="Share Parameter Link" title="Copy Shareable Link (C)">
@@ -871,6 +977,18 @@ export class RoomViewer {
       this.resetDefaults();
     }, { signal });
 
+    // Snapshot Modal Trigger
+    const snapBtn = this.hudBar.querySelector('#room-hud-btn-snapshot');
+    snapBtn?.addEventListener('click', () => {
+      this.openSnapshotModal();
+    }, { signal });
+
+    // Video Loop Modal Trigger
+    const recordBtn = this.hudBar.querySelector('#room-hud-btn-record');
+    recordBtn?.addEventListener('click', () => {
+      this.openVideoModal();
+    }, { signal });
+
     // Share Link
     const shareBtn = this.hudBar.querySelector('#room-hud-btn-share');
     shareBtn?.addEventListener('click', () => {
@@ -918,6 +1036,357 @@ export class RoomViewer {
   }
 
   /**
+   * Renders the High-Resolution Snapshot Modal.
+   */
+  private renderSnapshotModal(): void {
+    if (!this.container) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'room-modal-overlay hidden';
+    overlay.id = 'room-snapshot-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-label', 'High-Resolution Snapshot Export');
+
+    overlay.innerHTML = `
+      <div class="room-modal-card">
+        <div class="room-modal-header">
+          <div class="room-modal-title-group">
+            <h2 class="room-modal-title">Snapshot Export</h2>
+            <span class="room-modal-badge">STILL IMAGE</span>
+          </div>
+          <button type="button" class="room-modal-close" id="snap-modal-btn-close" aria-label="Close modal">&times;</button>
+        </div>
+
+        <div class="room-modal-body">
+          <div class="room-modal-section">
+            <span class="room-modal-section-title">Resolution Scale</span>
+            <div class="room-modal-choice-grid">
+              <button type="button" class="room-modal-choice-btn" data-scale="1">
+                <span class="room-modal-choice-label">1x Native</span>
+                <span class="room-modal-choice-sub">Display Size</span>
+              </button>
+              <button type="button" class="room-modal-choice-btn active" data-scale="2">
+                <span class="room-modal-choice-label">2x Ultra-HD</span>
+                <span class="room-modal-choice-sub">4K Ready</span>
+              </button>
+              <button type="button" class="room-modal-choice-btn" data-scale="4">
+                <span class="room-modal-choice-label">4x Archival</span>
+                <span class="room-modal-choice-sub">8K Master</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="room-modal-section">
+            <span class="room-modal-section-title">Image Format</span>
+            <div class="room-modal-choice-grid">
+              <button type="button" class="room-modal-choice-btn active" data-fmt="image/png">
+                <span class="room-modal-choice-label">PNG</span>
+                <span class="room-modal-choice-sub">Lossless</span>
+              </button>
+              <button type="button" class="room-modal-choice-btn" data-fmt="image/jpeg">
+                <span class="room-modal-choice-label">JPEG</span>
+                <span class="room-modal-choice-sub">95% High</span>
+              </button>
+              <button type="button" class="room-modal-choice-btn" data-fmt="image/webp">
+                <span class="room-modal-choice-label">WebP</span>
+                <span class="room-modal-choice-sub">Compact</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="room-modal-info-strip" id="snap-modal-info">
+            <span>Dimensions: Calculating...</span>
+            <span id="snap-modal-seed">Seed: ${this.activeParams.seed}</span>
+          </div>
+
+          <div class="room-modal-progress-bar" id="snap-modal-progress">
+            <div class="room-modal-progress-fill" id="snap-modal-progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="room-modal-actions">
+          <button type="button" class="room-btn-secondary" id="snap-modal-btn-cancel">Cancel</button>
+          <button type="button" class="room-btn-primary" id="snap-modal-btn-capture">
+            <span class="btn-text">Capture Snapshot</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.container.appendChild(overlay);
+    this.snapshotModal = overlay;
+
+    const signal = this.abortController?.signal;
+
+    // Close buttons
+    overlay.querySelector('#snap-modal-btn-close')?.addEventListener('click', () => this.closeSnapshotModal(), { signal });
+    overlay.querySelector('#snap-modal-btn-cancel')?.addEventListener('click', () => this.closeSnapshotModal(), { signal });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeSnapshotModal();
+    }, { signal });
+
+    // Scale buttons
+    const scaleBtns = overlay.querySelectorAll<HTMLButtonElement>('[data-scale]');
+    scaleBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        scaleBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeSnapshotScale = parseInt(btn.dataset.scale || '2', 10) as 1 | 2 | 4;
+        this.updateSnapshotInfoStrip();
+      }, { signal });
+    });
+
+    // Format buttons
+    const fmtBtns = overlay.querySelectorAll<HTMLButtonElement>('[data-fmt]');
+    fmtBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        fmtBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeSnapshotFormat = (btn.dataset.fmt || 'image/png') as any;
+        this.updateSnapshotInfoStrip();
+      }, { signal });
+    });
+
+    // Capture Trigger
+    const captureBtn = overlay.querySelector<HTMLButtonElement>('#snap-modal-btn-capture');
+    captureBtn?.addEventListener('click', async () => {
+      if (this.isSnapshotInProgress || !this.canvas) return;
+      this.isSnapshotInProgress = true;
+      captureBtn.disabled = true;
+
+      const progressBar = overlay.querySelector<HTMLElement>('#snap-modal-progress');
+      const progressFill = overlay.querySelector<HTMLElement>('#snap-modal-progress-fill');
+      const btnText = captureBtn.querySelector<HTMLElement>('.btn-text');
+
+      if (progressBar) progressBar.classList.add('active');
+      if (btnText) btnText.textContent = 'Rendering Buffer...';
+
+      try {
+        await captureSnapshot(this.canvas, {
+          resolutionScale: this.activeSnapshotScale,
+          format: this.activeSnapshotFormat,
+          filenamePrefix: `aurora-${this.activeRoomId || 'exhibit'}`,
+          seed: this.activeParams.seed,
+          autoDownload: true,
+          onProgress: (ratio) => {
+            if (progressFill) progressFill.style.width = `${Math.round(ratio * 100)}%`;
+          },
+        });
+
+        this.showToast(`Snapshot Captured (${this.activeSnapshotScale}x)`);
+        this.closeSnapshotModal();
+      } catch (err) {
+        console.error('Snapshot capture error:', err);
+        this.showToast('Snapshot capture failed');
+      } finally {
+        this.isSnapshotInProgress = false;
+        captureBtn.disabled = false;
+        if (progressBar) progressBar.classList.remove('active');
+        if (progressFill) progressFill.style.width = '0%';
+        if (btnText) btnText.textContent = 'Capture Snapshot';
+      }
+    }, { signal });
+  }
+
+  /**
+   * Updates the live dimension display in the snapshot modal.
+   */
+  private updateSnapshotInfoStrip(): void {
+    if (!this.snapshotModal || !this.canvas) return;
+    const targetW = Math.round(this.canvas.width * this.activeSnapshotScale);
+    const targetH = Math.round(this.canvas.height * this.activeSnapshotScale);
+    const infoStrip = this.snapshotModal.querySelector('#snap-modal-info');
+    if (infoStrip) {
+      infoStrip.innerHTML = `
+        <span>Output: ${targetW} × ${targetH} px</span>
+        <span>Seed: ${this.activeParams.seed || 'DEFAULT'}</span>
+      `;
+    }
+  }
+
+  /**
+   * Renders the Video Loop Recording Modal.
+   */
+  private renderVideoModal(): void {
+    if (!this.container) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'room-modal-overlay hidden';
+    overlay.id = 'room-video-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-label', 'Video Loop Recording');
+
+    const { mimeType } = negotiateSupportedVideoCodec();
+    const codecLabel = mimeType.includes('vp9')
+      ? 'WebM (VP9 Lossless)'
+      : mimeType.includes('avc1')
+      ? 'MP4 (AVC1 / H.264)'
+      : 'WebM Video';
+
+    overlay.innerHTML = `
+      <div class="room-modal-card">
+        <div class="room-modal-header">
+          <div class="room-modal-title-group">
+            <h2 class="room-modal-title">Record Video Loop</h2>
+            <span class="room-modal-badge">60 FPS LOOP</span>
+          </div>
+          <button type="button" class="room-modal-close" id="video-modal-btn-close" aria-label="Close modal">&times;</button>
+        </div>
+
+        <div class="room-modal-body">
+          <div class="room-progress-ring-container" id="video-progress-container" style="display: none;">
+            <svg class="room-progress-ring-svg" viewBox="0 0 100 100">
+              <circle class="room-progress-ring-bg" cx="50" cy="50" r="45"></circle>
+              <circle class="room-progress-ring-fill" id="video-ring-fill" cx="50" cy="50" r="45"></circle>
+            </svg>
+            <span class="room-progress-ring-label" id="video-ring-countdown">5.0s</span>
+            <span class="room-progress-ring-status" id="video-ring-status">STREAMING FRAMES...</span>
+          </div>
+
+          <div id="video-settings-container">
+            <div class="room-modal-section">
+              <span class="room-modal-section-title">Loop Duration</span>
+              <div class="room-modal-choice-grid">
+                <button type="button" class="room-modal-choice-btn active" data-dur="5">
+                  <span class="room-modal-choice-label">5 Seconds</span>
+                  <span class="room-modal-choice-sub">Social Loop</span>
+                </button>
+                <button type="button" class="room-modal-choice-btn" data-dur="10">
+                  <span class="room-modal-choice-label">10 Seconds</span>
+                  <span class="room-modal-choice-sub">Extended</span>
+                </button>
+                <button type="button" class="room-modal-choice-btn" data-dur="15">
+                  <span class="room-modal-choice-label">15 Seconds</span>
+                  <span class="room-modal-choice-sub">Long Loop</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="room-modal-section" style="margin-top: var(--space-3);">
+              <span class="room-modal-section-title">Target Framerate</span>
+              <div class="room-modal-choice-grid">
+                <button type="button" class="room-modal-choice-btn active" data-fps="60">
+                  <span class="room-modal-choice-label">60 FPS</span>
+                  <span class="room-modal-choice-sub">Ultra-Smooth</span>
+                </button>
+                <button type="button" class="room-modal-choice-btn" data-fps="30">
+                  <span class="room-modal-choice-label">30 FPS</span>
+                  <span class="room-modal-choice-sub">Standard</span>
+                </button>
+                <button type="button" class="room-modal-choice-btn" data-fps="24">
+                  <span class="room-modal-choice-label">24 FPS</span>
+                  <span class="room-modal-choice-sub">Cinematic</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="room-modal-info-strip" style="margin-top: var(--space-3);">
+              <span>Codec: ${codecLabel}</span>
+              <span>12 Mbps High</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="room-modal-actions">
+          <button type="button" class="room-btn-secondary" id="video-modal-btn-cancel">Cancel</button>
+          <button type="button" class="room-btn-primary" id="video-modal-btn-record">
+            <span class="btn-text">Start Recording</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.container.appendChild(overlay);
+    this.videoModal = overlay;
+
+    const signal = this.abortController?.signal;
+
+    // Close buttons
+    overlay.querySelector('#video-modal-btn-close')?.addEventListener('click', () => this.closeVideoModal(), { signal });
+    overlay.querySelector('#video-modal-btn-cancel')?.addEventListener('click', () => this.closeVideoModal(), { signal });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeVideoModal();
+    }, { signal });
+
+    // Duration buttons
+    const durBtns = overlay.querySelectorAll<HTMLButtonElement>('[data-dur]');
+    durBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        durBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeVideoDuration = parseInt(btn.dataset.dur || '5', 10);
+      }, { signal });
+    });
+
+    // FPS buttons
+    const fpsBtns = overlay.querySelectorAll<HTMLButtonElement>('[data-fps]');
+    fpsBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        fpsBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeVideoFPS = parseInt(btn.dataset.fps || '60', 10);
+      }, { signal });
+    });
+
+    // Start Recording Trigger
+    const recordBtn = overlay.querySelector<HTMLButtonElement>('#video-modal-btn-record');
+    const settingsContainer = overlay.querySelector<HTMLElement>('#video-settings-container');
+    const progressContainer = overlay.querySelector<HTMLElement>('#video-progress-container');
+    const ringFill = overlay.querySelector<HTMLElement>('#video-ring-fill');
+    const countdownLabel = overlay.querySelector<HTMLElement>('#video-ring-countdown');
+    const statusLabel = overlay.querySelector<HTMLElement>('#video-ring-status');
+
+    recordBtn?.addEventListener('click', async () => {
+      if (!this.canvas) return;
+
+      if (this.isRecordingInProgress) {
+        cancelVideoRecording();
+        this.isRecordingInProgress = false;
+        this.closeVideoModal();
+        return;
+      }
+
+      this.isRecordingInProgress = true;
+      if (recordBtn) recordBtn.querySelector('.btn-text')!.textContent = 'Cancel Recording';
+      if (settingsContainer) settingsContainer.style.display = 'none';
+      if (progressContainer) progressContainer.style.display = 'flex';
+
+      const totalDuration = this.activeVideoDuration;
+
+      try {
+        await recordVideoLoop(this.canvas, {
+          durationSeconds: totalDuration,
+          fps: this.activeVideoFPS,
+          filenamePrefix: `aurora-${this.activeRoomId || 'exhibit'}`,
+          seed: this.activeParams.seed,
+          autoDownload: true,
+          onProgress: (ratio, elapsedMs) => {
+            const circumference = 283;
+            const offset = circumference * (1 - ratio);
+            if (ringFill) ringFill.style.strokeDashoffset = String(offset);
+            const remaining = Math.max(0, totalDuration - elapsedMs / 1000);
+            if (countdownLabel) countdownLabel.textContent = `${remaining.toFixed(1)}s`;
+            if (statusLabel) {
+              statusLabel.textContent = ratio >= 0.98 ? 'COMPILING VIDEO...' : 'STREAMING CANVAS...';
+            }
+          },
+        });
+
+        this.showToast(`Video Loop Exported (${totalDuration}s @ ${this.activeVideoFPS}fps)`);
+        this.closeVideoModal();
+      } catch (err) {
+        console.error('Video recording error:', err);
+        this.showToast('Video recording failed');
+      } finally {
+        this.isRecordingInProgress = false;
+        if (recordBtn) recordBtn.querySelector('.btn-text')!.textContent = 'Start Recording';
+        if (settingsContainer) settingsContainer.style.display = 'block';
+        if (progressContainer) progressContainer.style.display = 'none';
+      }
+    }, { signal });
+  }
+
+  /**
    * Sets up 3000ms idle timer for auto-dimming the HUD and controls.
    */
   private setupAutoDimming(): void {
@@ -961,7 +1430,14 @@ export class RoomViewer {
     }
 
     this.idleTimeoutTimer = window.setTimeout(() => {
-      if (this.isDestroyed || this.isHUDHidden || this.isInteractingWithControls || this.isMobileDrawerOpen) {
+      if (
+        this.isDestroyed ||
+        this.isHUDHidden ||
+        this.isInteractingWithControls ||
+        this.isMobileDrawerOpen ||
+        (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) ||
+        (this.videoModal && !this.videoModal.classList.contains('hidden'))
+      ) {
         return;
       }
       this.isHUDDimmed = true;
@@ -996,11 +1472,11 @@ export class RoomViewer {
    * Attaches comprehensive keyboard shortcuts for in-room operations:
    * - Space: Toggle Pause / Resume
    * - R: Randomize Seed
-   * - S: Quick Snapshot
-   * - L: Loop Record Trigger
+   * - S: Open High-Res Snapshot Modal
+   * - L: Open Video Loop Export Modal
    * - C: Copy Share Link
    * - F: Toggle Fullscreen
-   * - Esc: Return to Gallery
+   * - Esc: Close Modals / Close Drawer / Return to Gallery
    * - H: Toggle HUD Visibility
    */
   private setupKeyboardShortcuts(): void {
@@ -1023,10 +1499,18 @@ export class RoomViewer {
         this.randomizeSeed();
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
-        this.showToast('Snapshot Pipeline Ready');
+        if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+          this.closeSnapshotModal();
+        } else {
+          this.openSnapshotModal();
+        }
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
-        this.showToast('Loop Recorder Pipeline Ready');
+        if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+          this.closeVideoModal();
+        } else {
+          this.openVideoModal();
+        }
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         this.shareURL();
@@ -1038,7 +1522,11 @@ export class RoomViewer {
         this.toggleHUDVisibility();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        if (this.isMobileDrawerOpen) {
+        if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+          this.closeSnapshotModal();
+        } else if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+          this.closeVideoModal();
+        } else if (this.isMobileDrawerOpen) {
           this.isMobileDrawerOpen = false;
           this.mobileDrawer?.classList.remove('open');
           this.mobileScrim?.classList.remove('open');

@@ -335,6 +335,18 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     viewer.togglePause();
     viewer.togglePause();
 
+    // Test Snapshot Modal opening & closing
+    viewer.openSnapshotModal();
+    const snapshotModal = testApp.querySelector('#room-snapshot-modal-overlay');
+    const isSnapshotModalOpen = snapshotModal !== null && !snapshotModal.classList.contains('hidden');
+    viewer.closeSnapshotModal();
+
+    // Test Video Loop Modal opening & closing
+    viewer.openVideoModal();
+    const videoModal = testApp.querySelector('#room-video-modal-overlay');
+    const isVideoModalOpen = videoModal !== null && !videoModal.classList.contains('hidden');
+    viewer.closeVideoModal();
+
     // Test toast notification display
     viewer.showToast('Test Starlight Toast');
     const toast = testApp.querySelector('.room-toast');
@@ -357,6 +369,8 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       isSeedChanged &&
       isReset &&
       isHUDHidden &&
+      isSnapshotModalOpen &&
+      isVideoModalOpen &&
       isToastRendered &&
       canvas instanceof HTMLCanvasElement &&
       hud instanceof HTMLElement &&
@@ -365,7 +379,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({
       passed: Boolean(roomViewerPassed),
       module: 'room-viewer.ts',
-      details: `RoomViewer mounted flow-field with Tweakpane controls (${steppers.length} steppers), verified seed randomizer (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), HUD toggle, toasts, and completed clean teardown.`,
+      details: `RoomViewer mounted flow-field with Tweakpane controls, verified snapshot & video loop modals, seed randomizer (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), HUD toggle, toasts, and completed clean teardown.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'room-viewer.ts', details: String(err) });

@@ -1,43 +1,208 @@
 /**
- * Aurora Tweakpane Custom Archival Theme
+ * Aurora Tweakpane Custom Archival Minimal Theme
+ * Aesthetic Direction: Obsidian Archival Minimal
  */
 
+/* ==========================================================================
+   Tweakpane Container & Frame
+   ========================================================================== */
+
 .tp-dfwv {
-  font-family: var(--font-mono) !important;
-  font-size: var(--text-mono-code) !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-caption) !important;
   border: 1px solid var(--border-subtle-2) !important;
-  border-radius: var(--radius-md) !important;
+  border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-dock) !important;
   backdrop-filter: var(--backdrop-blur-hud) !important;
+  -webkit-backdrop-filter: var(--backdrop-blur-hud) !important;
   z-index: 100 !important;
+  overflow: hidden !important;
+}
+
+.tp-rotv {
+  background-color: var(--tp-base-background-color) !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 .tp-rotv_b {
-  border-radius: var(--radius-md) !important;
+  border-radius: var(--radius-lg) !important;
 }
+
+/* ==========================================================================
+   Folder Headers & Section Styling
+   ========================================================================== */
 
 .tp-fldv {
   border: 1px solid var(--border-subtle) !important;
-  border-radius: var(--radius-sm) !important;
+  border-radius: var(--radius-md) !important;
   margin-bottom: var(--space-2) !important;
+  background-color: rgba(24, 28, 38, 0.5) !important;
+  overflow: hidden !important;
 }
 
 .tp-fldv_t {
   font-family: var(--font-display) !important;
-  font-size: 0.8rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
   letter-spacing: var(--tracking-wide) !important;
   text-transform: uppercase !important;
-  color: var(--text-secondary) !important;
+  color: var(--text-primary) !important;
+  padding: 8px 10px !important;
+  background-color: rgba(34, 39, 54, 0.4) !important;
 }
+
+.tp-fldv_t:hover {
+  color: var(--accent-cyan) !important;
+}
+
+.tp-fldv_m {
+  stroke: var(--text-muted) !important;
+}
+
+.tp-fldv_t:hover .tp-fldv_m {
+  stroke: var(--accent-cyan) !important;
+}
+
+/* ==========================================================================
+   Labels & Inputs
+   ========================================================================== */
 
 .tp-lblv_l {
   font-family: var(--font-sans) !important;
   font-size: var(--text-caption) !important;
+  font-weight: 500 !important;
   color: var(--text-secondary) !important;
 }
 
 .tp-txtv_i,
 .tp-sldtxtv_t {
   font-family: var(--font-mono) !important;
+  font-size: var(--text-mono-code) !important;
   color: var(--accent-cyan) !important;
+  background-color: var(--bg-surface-1) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.tp-txtv_i:focus,
+.tp-sldtxtv_t:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.3) !important;
+}
+
+/* Sliders */
+.tp-sldv_t {
+  background-color: var(--bg-surface-1) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.tp-sldv_b {
+  background-color: var(--accent-cyan) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.3) !important;
+}
+
+.tp-sldv_k {
+  background-color: var(--text-primary) !important;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.5) !important;
+}
+
+/* Dropdown selects */
+.tp-lstv_s {
+  font-family: var(--font-mono) !important;
+  font-size: var(--text-mono-code) !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-surface-1) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.tp-lstv_s:focus {
+  border-color: var(--accent-cyan) !important;
+}
+
+/* Buttons */
+.tp-btnv_b {
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-caption) !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  background-color: var(--bg-surface-2) !important;
+  border: 1px solid var(--border-subtle-2) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--duration-fast) var(--ease-out-expo) !important;
+}
+
+.tp-btnv_b:hover {
+  background-color: var(--bg-surface-3) !important;
+  border-color: var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.tp-btnv_b:active {
+  transform: scale(0.97) !important;
+}
+
+/* Checkboxes */
+.tp-ckbv_w {
+  background-color: var(--bg-surface-1) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.tp-ckbv_w:hover {
+  border-color: var(--accent-cyan) !important;
+}
+
+.tp-ckbv_m {
+  stroke: var(--accent-cyan) !important;
+}
+
+/* Discrete Step Stepper Controls */
+.room-stepper-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: 2px;
+  margin-bottom: var(--space-2);
+  padding: 0 4px;
+}
+
+.room-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.room-stepper-btn:hover {
+  color: var(--accent-cyan);
+  background: var(--bg-surface-3);
+  border-color: var(--accent-cyan);
+}
+
+.room-stepper-btn:active {
+  transform: scale(0.92);
+}
+
+.room-stepper-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-grow: 1;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

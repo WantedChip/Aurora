@@ -303,6 +303,19 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     viewer.updateParams({ particleCount: 4000 });
     const updatedParams = viewer.getParams();
 
+    // Test Tweakpane dock generation & steppers
+    const pane = viewer.getPane();
+    const hasPane = pane !== null;
+    const dock = viewer.getControlDock();
+    const hasDock = dock !== null && dock.querySelectorAll('.tp-dfwv, .tp-rotv').length > 0;
+    const steppers = testApp.querySelectorAll('.room-stepper-btn');
+    const hasSteppers = steppers.length > 0;
+
+    // Test stepper button click
+    if (steppers.length > 0) {
+      (steppers[0] as HTMLButtonElement).click();
+    }
+
     // Test seed randomization
     await viewer.randomizeSeed();
     const randomizedParams = viewer.getParams();
@@ -312,6 +325,15 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     await viewer.resetDefaults();
     const resetParams = viewer.getParams();
     const isReset = resetParams.particleCount === meta?.defaultParams.particleCount;
+
+    // Test HUD manual toggle
+    viewer.toggleHUDVisibility();
+    const isHUDHidden = testApp.querySelector('#room-viewport')?.classList.contains('hud-hidden') ?? false;
+    viewer.toggleHUDVisibility();
+
+    // Test simulation pause toggle
+    viewer.togglePause();
+    viewer.togglePause();
 
     // Test toast notification display
     viewer.showToast('Test Starlight Toast');
@@ -329,8 +351,12 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       meta?.id === 'flow-field' &&
       params.seed === '#39A2FF' &&
       updatedParams.particleCount === 4000 &&
+      hasPane &&
+      hasDock &&
+      hasSteppers &&
       isSeedChanged &&
       isReset &&
+      isHUDHidden &&
       isToastRendered &&
       canvas instanceof HTMLCanvasElement &&
       hud instanceof HTMLElement &&
@@ -339,7 +365,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({
       passed: Boolean(roomViewerPassed),
       module: 'room-viewer.ts',
-      details: `RoomViewer mounted flow-field, verified HUD buttons & toast notification, randomized seed (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), and completed clean teardown.`,
+      details: `RoomViewer mounted flow-field with Tweakpane controls (${steppers.length} steppers), verified seed randomizer (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), HUD toggle, toasts, and completed clean teardown.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'room-viewer.ts', details: String(err) });

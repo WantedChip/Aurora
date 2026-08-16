@@ -3,11 +3,13 @@
  * Direction: Obsidian Archival Minimal
  * 
  * Manages the full-screen canvas lifecycle, top navigation HUD bar,
+ * Tweakpane parameter dock & mobile bottom drawer, discrete accessibility steppers,
  * deterministic seed randomization with smooth parameter damping,
  * parameter reset, URL state sharing, fullscreen toggling,
- * hardware capability inspection, pointer interactions, and clean teardown.
+ * 3000ms HUD auto-dimming on idle, keyboard shortcuts, and clean teardown.
  */
 
+import { Pane } from 'tweakpane';
 import type { RouteState } from './lib/router';
 import { router } from './lib/router';
 import { getRoomById, lazyLoadRoom } from './rooms/registry';
@@ -17,6 +19,7 @@ import type {
   RoomCleanupFn,
   RoomPointerEvent,
   RoomContext,
+  ControlDef,
 } from './rooms/types';
 import { createPRNG, generateRandomSeed, type PRNG } from './lib/prng';
 import { detectGPUCapabilities, getClampedDPR, type GPUCapabilities } from './lib/gpu';
@@ -30,10 +33,15 @@ export class RoomViewer {
   private gpuBanner: HTMLElement | null = null;
   private errorOverlay: HTMLElement | null = null;
   private hudBar: HTMLElement | null = null;
+  private controlDock: HTMLElement | null = null;
+  private mobileDrawer: HTMLElement | null = null;
+  private mobileScrim: HTMLElement | null = null;
+  private mobileToggleBtn: HTMLElement | null = null;
   private toastContainer: HTMLElement | null = null;
   private activeToastElement: HTMLElement | null = null;
   private toastTimer: number | null = null;
 
+  private pane: Pane | null = null;
   private activeRoomId: string | null = null;
   private activeMetadata: RoomMetadata | null = null;
   private activeParams: Record<string, any> = {};
@@ -46,11 +54,19 @@ export class RoomViewer {
   private abortController: AbortController | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeDebounceTimer: number | null = null;
+  private urlDebounceTimer: number | null = null;
+  private idleTimeoutTimer: number | null = null;
   private lerpAnimFrameId = 0;
   private lastRandomizeTimestamp = 0;
+
   private isPointerDown = false;
   private isMounted = false;
   private isDestroyed = false;
+  private isPaused = false;
+  private isHUDHidden = false;
+  private isHUDDimmed = false;
+  private isMobileDrawerOpen = false;
+  private isInteractingWithControls = false;
 
   /**
    * Assembles and mounts the full-screen room viewport for the specified room ID and route state.
@@ -82,6 +98,9 @@ export class RoomViewer {
     this.renderDOM(app);
     this.showLoadingOverlay(metadata);
 
+    // Initialize Tweakpane parameter controls
+    this.setupControlDock();
+
     // Perform hardware capability check and mount room
     try {
       this.gpuCapabilities = await detectGPUCapabilities();
@@ -92,6 +111,8 @@ export class RoomViewer {
       this.setupPointerListeners();
       this.setupKeyboardShortcuts();
       this.setupFullscreenListener();
+      this.setupAutoDimming();
+      this.setupMobileDrawer();
 
       // Dynamically load room simulation module
       const roomInstance = await lazyLoadRoom(roomId);
@@ -111,6 +132,7 @@ export class RoomViewer {
         dpr: this.dpr,
         onParamChange: (key: string, value: any) => {
           this.activeParams[key] = value;
+          this.pane?.refresh();
         },
       };
 
@@ -154,6 +176,25 @@ export class RoomViewer {
     if (this.resizeDebounceTimer !== null) {
       clearTimeout(this.resizeDebounceTimer);
       this.resizeDebounceTimer = null;
+    }
+
+    if (this.urlDebounceTimer !== null) {
+      clearTimeout(this.urlDebounceTimer);
+      this.urlDebounceTimer = null;
+    }
+
+    if (this.idleTimeoutTimer !== null) {
+      clearTimeout(this.idleTimeoutTimer);
+      this.idleTimeoutTimer = null;
+    }
+
+    if (this.pane) {
+      try {
+        this.pane.dispose();
+      } catch (paneErr) {
+        console.warn('Error during Tweakpane disposal:', paneErr);
+      }
+      this.pane = null;
     }
 
     if (this.resizeObserver) {
@@ -205,6 +246,10 @@ export class RoomViewer {
     this.canvas = null;
     this.canvasContainer = null;
     this.hudBar = null;
+    this.controlDock = null;
+    this.mobileDrawer = null;
+    this.mobileScrim = null;
+    this.mobileToggleBtn = null;
   }
 
   /**
@@ -243,6 +288,20 @@ export class RoomViewer {
   }
 
   /**
+   * Returns the Tweakpane control dock element.
+   */
+  public getControlDock(): HTMLElement | null {
+    return this.controlDock;
+  }
+
+  /**
+   * Returns the active Tweakpane instance.
+   */
+  public getPane(): Pane | null {
+    return this.pane;
+  }
+
+  /**
    * Returns the detected GPU capabilities.
    */
   public getGPUCapabilities(): GPUCapabilities | null {
@@ -254,6 +313,7 @@ export class RoomViewer {
    */
   public updateParams(newParams: Record<string, any>): void {
     this.activeParams = { ...this.activeParams, ...newParams };
+    this.pane?.refresh();
     if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
       this.currentRoomInstance.updateParams(this.activeParams);
     }
@@ -268,6 +328,7 @@ export class RoomViewer {
       return;
     }
     this.lastRandomizeTimestamp = now;
+    this.wakeHUD();
 
     const newSeed = generateRandomSeed();
     const seedPrng = createPRNG(newSeed);
@@ -316,6 +377,7 @@ export class RoomViewer {
    */
   public async resetDefaults(): Promise<void> {
     if (!this.activeMetadata || this.isDestroyed) return;
+    this.wakeHUD();
 
     const defaultParams = { ...this.activeMetadata.defaultParams };
     
@@ -341,6 +403,7 @@ export class RoomViewer {
    */
   public async shareURL(): Promise<void> {
     if (!this.activeRoomId || !this.activeMetadata) return;
+    this.wakeHUD();
 
     try {
       await copyShareableURL(this.activeRoomId, this.activeParams, this.activeMetadata.defaultParams);
@@ -355,6 +418,7 @@ export class RoomViewer {
    */
   public toggleFullscreen(): void {
     if (typeof document === 'undefined') return;
+    this.wakeHUD();
 
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().catch(err => {
@@ -364,6 +428,37 @@ export class RoomViewer {
       document.exitFullscreen?.().catch(err => {
         console.warn('Exit fullscreen failed:', err);
       });
+    }
+  }
+
+  /**
+   * Toggles between paused and active simulation states.
+   */
+  public togglePause(): void {
+    this.isPaused = !this.isPaused;
+    this.wakeHUD();
+
+    if (this.currentRoomInstance) {
+      if (typeof (this.currentRoomInstance as any).setPaused === 'function') {
+        (this.currentRoomInstance as any).setPaused(this.isPaused);
+      }
+    }
+
+    this.showToast(this.isPaused ? 'Simulation Paused' : 'Simulation Resumed');
+  }
+
+  /**
+   * Toggles manual HUD visibility for pristine un-occluded exhibit viewing.
+   */
+  public toggleHUDVisibility(): void {
+    this.isHUDHidden = !this.isHUDHidden;
+    if (this.container) {
+      this.container.classList.toggle('hud-hidden', this.isHUDHidden);
+    }
+    if (this.isHUDHidden) {
+      this.showToast("HUD Hidden (Press 'H' to show)");
+    } else {
+      this.showToast('HUD Restored');
     }
   }
 
@@ -419,9 +514,9 @@ export class RoomViewer {
   }
 
   /**
-   * Smoothly interpolates numeric parameters over a given duration using an ease-out curve.
+   * Interpolates numerical parameters smoothly towards target parameters using exponential easing.
    */
-  private interpolateParams(targetParams: Record<string, any>, durationMs = 400): Promise<void> {
+  private interpolateParams(targetParams: Record<string, any>, durationMs: number): Promise<void> {
     if (this.lerpAnimFrameId) {
       cancelAnimationFrame(this.lerpAnimFrameId);
       this.lerpAnimFrameId = 0;
@@ -431,7 +526,7 @@ export class RoomViewer {
       const startParams = { ...this.activeParams };
       const startTime = performance.now();
 
-      // Immediately apply non-numeric or string/bool parameters
+      // Immediately apply non-numeric parameters
       for (const [key, targetVal] of Object.entries(targetParams)) {
         if (typeof targetVal !== 'number') {
           this.activeParams[key] = targetVal;
@@ -458,6 +553,8 @@ export class RoomViewer {
           }
         }
 
+        this.pane?.refresh();
+
         if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
           this.currentRoomInstance.updateParams(this.activeParams);
         }
@@ -467,6 +564,7 @@ export class RoomViewer {
         } else {
           // Final exact parameter snapshot
           this.activeParams = { ...this.activeParams, ...targetParams };
+          this.pane?.refresh();
           if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
             this.currentRoomInstance.updateParams(this.activeParams);
           }
@@ -480,32 +578,32 @@ export class RoomViewer {
   }
 
   /**
-   * Renders the basic room DOM scaffolding and full Top HUD Bar.
+   * Renders the foundational DOM structure for the room viewer, HUD, control dock, and mobile drawer.
    */
   private renderDOM(app: HTMLElement): void {
+    const meta = this.activeMetadata!;
+
     const container = document.createElement('div');
     container.className = 'room-viewport-container';
     container.id = 'room-viewport';
 
+    // Canvas container host
     const canvasContainer = document.createElement('div');
     canvasContainer.className = 'room-canvas-container';
 
     const canvas = document.createElement('canvas');
     canvas.className = 'room-canvas';
-    canvas.setAttribute('aria-label', `Interactive simulation of ${this.activeMetadata?.name || 'generative artwork'}`);
-    canvas.setAttribute('tabindex', '0');
-
+    canvas.setAttribute('aria-label', `${meta.name} Generative Simulation Canvas`);
     canvasContainer.appendChild(canvas);
     container.appendChild(canvasContainer);
 
-    // In-Room Top HUD Navigation Bar
+    // In-Room Top Navigation HUD Bar
     const hudBar = document.createElement('header');
     hudBar.className = 'room-hud-bar';
     hudBar.id = 'room-hud-bar';
     hudBar.setAttribute('role', 'toolbar');
     hudBar.setAttribute('aria-label', 'Exhibit Navigation & Controls');
 
-    const meta = this.activeMetadata!;
     hudBar.innerHTML = `
       <div class="room-hud-left">
         <button type="button" id="room-hud-btn-back" class="room-hud-back" aria-label="Return to Gallery" title="Return to Gallery (Esc)">
@@ -543,14 +641,209 @@ export class RoomViewer {
     `;
 
     container.appendChild(hudBar);
+
+    // Desktop Floating Control Dock
+    const controlDock = document.createElement('aside');
+    controlDock.className = 'room-control-dock';
+    controlDock.id = 'room-control-dock';
+    controlDock.setAttribute('aria-label', 'Exhibit Parameter Controls');
+    container.appendChild(controlDock);
+
+    // Mobile Control Toggle Button
+    const mobileToggleBtn = document.createElement('button');
+    mobileToggleBtn.type = 'button';
+    mobileToggleBtn.className = 'room-mobile-toggle-btn';
+    mobileToggleBtn.id = 'room-mobile-toggle-btn';
+    mobileToggleBtn.setAttribute('aria-label', 'Open Parameter Controls');
+    mobileToggleBtn.innerHTML = `
+      <span aria-hidden="true">🎛</span>
+      <span>Parameters</span>
+    `;
+    container.appendChild(mobileToggleBtn);
+
+    // Mobile Scrim & Bottom Sheet Drawer
+    const mobileScrim = document.createElement('div');
+    mobileScrim.className = 'room-drawer-scrim';
+    mobileScrim.id = 'room-drawer-scrim';
+    container.appendChild(mobileScrim);
+
+    const mobileDrawer = document.createElement('section');
+    mobileDrawer.className = 'room-mobile-drawer';
+    mobileDrawer.id = 'room-mobile-drawer';
+    mobileDrawer.setAttribute('aria-label', 'Exhibit Parameters Drawer');
+    mobileDrawer.innerHTML = `
+      <div class="room-drawer-header" id="room-drawer-header">
+        <div class="room-drawer-handle" aria-hidden="true"></div>
+        <div class="room-drawer-title-row">
+          <h2 class="room-drawer-title">Parameters</h2>
+          <button type="button" class="room-drawer-close" id="room-drawer-btn-close" aria-label="Close parameters drawer">
+            &times;
+          </button>
+        </div>
+      </div>
+      <div class="room-drawer-body" id="room-mobile-drawer-body"></div>
+    `;
+    container.appendChild(mobileDrawer);
+
     app.appendChild(container);
 
     this.container = container;
     this.canvasContainer = canvasContainer;
     this.canvas = canvas;
     this.hudBar = hudBar;
+    this.controlDock = controlDock;
+    this.mobileDrawer = mobileDrawer;
+    this.mobileScrim = mobileScrim;
+    this.mobileToggleBtn = mobileToggleBtn;
 
     this.setupHUDButtonListeners();
+  }
+
+  /**
+   * Initializes and populates the Tweakpane parameter dock.
+   */
+  private setupControlDock(): void {
+    if (!this.activeMetadata) return;
+
+    const isMobile = window.innerWidth <= 640;
+    const targetContainer = isMobile
+      ? this.mobileDrawer?.querySelector<HTMLElement>('#room-mobile-drawer-body') || this.controlDock!
+      : this.controlDock!;
+
+    if (this.pane) {
+      this.pane.dispose();
+      this.pane = null;
+    }
+
+    const pane = new Pane({
+      container: targetContainer,
+      title: `${this.activeMetadata.name} Controls`,
+      expanded: true,
+    });
+
+    // Group controls by folder
+    const folderMap = new Map<string, any>();
+    const controlsByFolder = new Map<string, ControlDef[]>();
+
+    for (const ctrl of this.activeMetadata.controls) {
+      const folderName = ctrl.folder || 'Parameters';
+      if (!controlsByFolder.has(folderName)) {
+        controlsByFolder.set(folderName, []);
+      }
+      controlsByFolder.get(folderName)!.push(ctrl);
+    }
+
+    for (const [folderName, controls] of controlsByFolder.entries()) {
+      const folder = pane.addFolder({
+        title: folderName,
+        expanded: true,
+      });
+      folderMap.set(folderName, folder);
+
+      for (const ctrl of controls) {
+        if (ctrl.type === 'slider') {
+          folder.addBinding(this.activeParams, ctrl.key, {
+            min: ctrl.min,
+            max: ctrl.max,
+            step: ctrl.step,
+            label: ctrl.label,
+          });
+
+          // Create discrete step buttons (+ / -) row for accessibility
+          if (ctrl.step && ctrl.min !== undefined && ctrl.max !== undefined) {
+            const stepVal = ctrl.step;
+            const minVal = ctrl.min;
+            const maxVal = ctrl.max;
+
+            const stepperContainer = document.createElement('div');
+            stepperContainer.className = 'room-stepper-row';
+            stepperContainer.innerHTML = `
+              <button type="button" class="room-stepper-btn" data-dir="-1" title="Step down ${ctrl.label}" aria-label="Step down ${ctrl.label}">−</button>
+              <button type="button" class="room-stepper-btn" data-dir="1" title="Step up ${ctrl.label}" aria-label="Step up ${ctrl.label}">+</button>
+              <span class="room-stepper-label">±${stepVal}</span>
+            `;
+
+            stepperContainer.addEventListener('click', (e) => {
+              const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.room-stepper-btn');
+              if (!btn) return;
+              const dir = parseInt(btn.dataset.dir || '0', 10);
+              const current = typeof this.activeParams[ctrl.key] === 'number' ? this.activeParams[ctrl.key] : minVal;
+              const nextVal = Math.min(maxVal, Math.max(minVal, current + dir * stepVal));
+              this.activeParams[ctrl.key] = parseFloat(nextVal.toFixed(4));
+              pane.refresh();
+              if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
+                this.currentRoomInstance.updateParams(this.activeParams);
+              }
+              this.debounceSyncURL();
+            });
+
+            folder.element.appendChild(stepperContainer);
+          }
+        } else if (ctrl.type === 'select' && ctrl.options) {
+          const optionsObj: Record<string, any> = {};
+          for (const opt of ctrl.options) {
+            optionsObj[opt.label] = opt.value;
+          }
+          folder.addBinding(this.activeParams, ctrl.key, {
+            options: optionsObj,
+            label: ctrl.label,
+          });
+        } else if (ctrl.type === 'boolean') {
+          folder.addBinding(this.activeParams, ctrl.key, {
+            label: ctrl.label,
+          });
+        } else if (ctrl.type === 'color') {
+          folder.addBinding(this.activeParams, ctrl.key, {
+            label: ctrl.label,
+            view: 'color',
+          });
+        } else if (ctrl.type === 'button') {
+          folder.addButton({
+            title: ctrl.label,
+          }).on('click', () => {
+            if (typeof ctrl.action === 'function') {
+              ctrl.action();
+            }
+          });
+        }
+      }
+    }
+
+    pane.on('change', () => {
+      this.wakeHUD();
+      if (this.currentRoomInstance && typeof this.currentRoomInstance.updateParams === 'function') {
+        this.currentRoomInstance.updateParams(this.activeParams);
+      }
+      this.debounceSyncURL();
+    });
+
+    this.pane = pane;
+
+    // Track active user interaction with controls to prevent auto-dimming
+    const bindControlFocus = (el: HTMLElement | null) => {
+      if (!el) return;
+      el.addEventListener('pointerenter', () => { this.isInteractingWithControls = true; this.wakeHUD(); });
+      el.addEventListener('pointerleave', () => { this.isInteractingWithControls = false; });
+      el.addEventListener('focusin', () => { this.isInteractingWithControls = true; this.wakeHUD(); });
+      el.addEventListener('focusout', () => { this.isInteractingWithControls = false; });
+    };
+
+    bindControlFocus(this.controlDock);
+    bindControlFocus(this.mobileDrawer);
+  }
+
+  /**
+   * Debounces URL hash synchronization to prevent excessive history calls during rapid slider dragging.
+   */
+  private debounceSyncURL(): void {
+    if (this.urlDebounceTimer !== null) {
+      clearTimeout(this.urlDebounceTimer);
+    }
+    this.urlDebounceTimer = window.setTimeout(() => {
+      if (this.activeRoomId && this.activeMetadata && !this.isDestroyed) {
+        syncStateToURL(this.activeRoomId, this.activeParams, this.activeMetadata.defaultParams, true);
+      }
+    }, 200);
   }
 
   /**
@@ -592,7 +885,92 @@ export class RoomViewer {
   }
 
   /**
-   * Sets up fullscreenchange listener on document to synchronize button state.
+   * Sets up mobile bottom-sheet drawer interactions and toggle triggers.
+   */
+  private setupMobileDrawer(): void {
+    const signal = this.abortController?.signal;
+
+    const openDrawer = () => {
+      this.isMobileDrawerOpen = true;
+      this.mobileDrawer?.classList.add('open');
+      this.mobileScrim?.classList.add('open');
+      this.wakeHUD();
+    };
+
+    const closeDrawer = () => {
+      this.isMobileDrawerOpen = false;
+      this.mobileDrawer?.classList.remove('open');
+      this.mobileScrim?.classList.remove('open');
+      this.wakeHUD();
+    };
+
+    this.mobileToggleBtn?.addEventListener('click', openDrawer, { signal });
+    this.mobileScrim?.addEventListener('click', closeDrawer, { signal });
+
+    const closeBtn = this.mobileDrawer?.querySelector('#room-drawer-btn-close');
+    closeBtn?.addEventListener('click', closeDrawer, { signal });
+
+    const drawerHeader = this.mobileDrawer?.querySelector('#room-drawer-header');
+    drawerHeader?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('#room-drawer-btn-close')) return;
+      closeDrawer();
+    }, { signal });
+  }
+
+  /**
+   * Sets up 3000ms idle timer for auto-dimming the HUD and controls.
+   */
+  private setupAutoDimming(): void {
+    if (typeof window === 'undefined') return;
+
+    const wakeHandler = () => {
+      this.wakeHUD();
+    };
+
+    const events = ['pointermove', 'pointerdown', 'keydown', 'touchstart', 'touchmove', 'wheel'];
+    for (const evt of events) {
+      window.addEventListener(evt, wakeHandler, {
+        passive: true,
+        signal: this.abortController?.signal,
+      });
+    }
+
+    this.startIdleTimer();
+  }
+
+  /**
+   * Wakes up the HUD and resets the idle countdown timer.
+   */
+  private wakeHUD(): void {
+    if (this.isDestroyed) return;
+
+    if (this.isHUDDimmed && !this.isHUDHidden) {
+      this.isHUDDimmed = false;
+      this.container?.classList.remove('hud-dimmed');
+    }
+
+    this.startIdleTimer();
+  }
+
+  /**
+   * Starts or restarts the 3000ms idle countdown timer.
+   */
+  private startIdleTimer(): void {
+    if (this.idleTimeoutTimer !== null) {
+      clearTimeout(this.idleTimeoutTimer);
+    }
+
+    this.idleTimeoutTimer = window.setTimeout(() => {
+      if (this.isDestroyed || this.isHUDHidden || this.isInteractingWithControls || this.isMobileDrawerOpen) {
+        return;
+      }
+      this.isHUDDimmed = true;
+      this.container?.classList.add('hud-dimmed');
+    }, 3000);
+  }
+
+  /**
+   * Listens for browser fullscreen changes and updates the HUD icon state.
    */
   private setupFullscreenListener(): void {
     if (typeof document === 'undefined') return;
@@ -615,11 +993,15 @@ export class RoomViewer {
   }
 
   /**
-   * Attaches keyboard shortcuts for in-room operations:
+   * Attaches comprehensive keyboard shortcuts for in-room operations:
+   * - Space: Toggle Pause / Resume
    * - R: Randomize Seed
+   * - S: Quick Snapshot
+   * - L: Loop Record Trigger
    * - C: Copy Share Link
    * - F: Toggle Fullscreen
    * - Esc: Return to Gallery
+   * - H: Toggle HUD Visibility
    */
   private setupKeyboardShortcuts(): void {
     if (typeof window === 'undefined') return;
@@ -633,18 +1015,36 @@ export class RoomViewer {
         return;
       }
 
-      if (e.key === 'r' || e.key === 'R') {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        this.togglePause();
+      } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         this.randomizeSeed();
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        this.showToast('Snapshot Pipeline Ready');
+      } else if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        this.showToast('Loop Recorder Pipeline Ready');
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         this.shareURL();
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         this.toggleFullscreen();
+      } else if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        this.toggleHUDVisibility();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        router.navigateToGallery();
+        if (this.isMobileDrawerOpen) {
+          this.isMobileDrawerOpen = false;
+          this.mobileDrawer?.classList.remove('open');
+          this.mobileScrim?.classList.remove('open');
+        } else {
+          router.navigateToGallery();
+        }
       }
     }, { signal: this.abortController?.signal });
   }
@@ -715,7 +1115,7 @@ export class RoomViewer {
   }
 
   /**
-   * Handles canvas dimension updates with debouncing.
+   * Handles canvas dimension updates with debouncing and re-adjusts Tweakpane container if crossing mobile threshold.
    */
   private handleResize(): void {
     if (this.isDestroyed || !this.canvas || !this.canvasContainer) return;
@@ -726,6 +1126,15 @@ export class RoomViewer {
 
     this.resizeDebounceTimer = window.setTimeout(() => {
       this.resizeCanvasBuffer();
+      // Re-mount Tweakpane if viewport crossed desktop/mobile boundary
+      const isMobile = window.innerWidth <= 640;
+      const target = isMobile
+        ? this.mobileDrawer?.querySelector<HTMLElement>('#room-mobile-drawer-body')
+        : this.controlDock;
+
+      if (target && this.pane && this.pane.element.parentElement !== target) {
+        target.appendChild(this.pane.element);
+      }
     }, 50);
   }
 

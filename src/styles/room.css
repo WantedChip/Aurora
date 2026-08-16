@@ -61,7 +61,8 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-dock), 0 0 16px rgba(255, 184, 0, 0.15);
   animation: roomBannerSlideDown 360ms var(--ease-out-expo) forwards;
-  transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+  transition: opacity var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
 }
 
 @keyframes roomBannerSlideDown {
@@ -595,6 +596,193 @@
 }
 
 /* ==========================================================================
+   Tweakpane Parameter Control Dock (Desktop Floating Dock)
+   ========================================================================== */
+
+.room-control-dock {
+  position: absolute;
+  top: 76px;
+  right: 16px;
+  width: 300px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 120;
+  transition: opacity var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.room-control-dock::-webkit-scrollbar {
+  width: 4px;
+}
+
+.room-control-dock::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.room-control-dock::-webkit-scrollbar-thumb {
+  background: var(--border-subtle-2);
+  border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   Mobile Bottom-Sheet Control Drawer (<640px)
+   ========================================================================== */
+
+.room-mobile-toggle-btn {
+  display: none;
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 130;
+  align-items: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-4);
+  background: rgba(24, 28, 38, 0.94);
+  backdrop-filter: var(--backdrop-blur-hud);
+  -webkit-backdrop-filter: var(--backdrop-blur-hud);
+  border: 1px solid var(--border-subtle-2);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-dock);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+}
+
+.room-mobile-toggle-btn:hover {
+  background: var(--bg-surface-3);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.room-drawer-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 8, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 240;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) ease;
+}
+
+.room-drawer-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.room-mobile-drawer {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 70vh;
+  z-index: 250;
+  background: rgba(17, 20, 28, 0.98);
+  backdrop-filter: var(--backdrop-blur-hud);
+  -webkit-backdrop-filter: var(--backdrop-blur-hud);
+  border-top: 1px solid var(--border-subtle-2);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.85);
+  transform: translateY(100%);
+  transition: transform 320ms var(--ease-out-expo);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.room-mobile-drawer.open {
+  transform: translateY(0);
+}
+
+.room-drawer-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.room-drawer-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  margin-bottom: 8px;
+}
+
+.room-drawer-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.room-drawer-title {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-3);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.room-drawer-close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-2);
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.room-drawer-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* ==========================================================================
+   HUD Auto-Dimming & Manual Hide State
+   ========================================================================== */
+
+.room-viewport-container.hud-dimmed .room-hud-bar,
+.room-viewport-container.hud-dimmed .room-control-dock,
+.room-viewport-container.hud-dimmed .room-gpu-banner,
+.room-viewport-container.hud-dimmed .room-mobile-toggle-btn {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+
+.room-viewport-container.hud-dimmed .room-mobile-toggle-btn {
+  transform: translateY(8px);
+}
+
+/* Manual Complete Hide (H key) */
+.room-viewport-container.hud-hidden .room-hud-bar,
+.room-viewport-container.hud-hidden .room-control-dock,
+.room-viewport-container.hud-hidden .room-gpu-banner,
+.room-viewport-container.hud-hidden .room-mobile-toggle-btn,
+.room-viewport-container.hud-hidden .room-mobile-drawer,
+.room-viewport-container.hud-hidden .room-drawer-scrim,
+.room-viewport-container.hud-hidden .room-toast-container {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-12px) !important;
+}
+
+/* ==========================================================================
    Toast Notification System
    ========================================================================== */
 
@@ -702,6 +890,22 @@
 
   .room-hud-action-btn span:not(.icon) {
     display: none;
+  }
+
+  .room-control-dock {
+    display: none !important;
+  }
+
+  .room-mobile-toggle-btn {
+    display: inline-flex;
+  }
+
+  .room-mobile-drawer {
+    display: flex;
+  }
+
+  .room-drawer-scrim {
+    display: block;
   }
 
   .room-gpu-banner {

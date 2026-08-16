@@ -6,6 +6,7 @@
 import './styles/main.css';
 import './styles/gallery.css';
 import './styles/room.css';
+import './styles/tweakpane-theme.css';
 
 import { router, type RouteState } from './lib/router';
 import { GalleryView } from './gallery';

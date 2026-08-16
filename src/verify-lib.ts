@@ -54,7 +54,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({
       passed: typeof caps.hasWebGPU === 'boolean' && typeof caps.hasWebGL2 === 'boolean' && dpr > 0,
       module: 'gpu.ts',
-      details: `Tier: ${tier} | DPR: ${dpr} | Badge: "${badge}" | MaxTexture: ${caps.maxTextureSize}px`,
+      details: `Tier: ${tier} | DPR: ${dpr} | MaxTexture: ${caps.maxTextureSize}px | Info: ${caps.diagnosis || badge}`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'gpu.ts', details: String(err) });

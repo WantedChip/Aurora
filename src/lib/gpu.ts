@@ -26,6 +26,7 @@ export interface GPUCapabilities {
   isMobile: boolean;
   isTouch: boolean;
   unmaskedRenderer?: string;
+  diagnosis?: string;
 }
 
 let cachedCapabilities: GPUCapabilities | null = null;
@@ -125,11 +126,26 @@ export async function detectGPUCapabilities(): Promise<GPUCapabilities> {
 
     // Check navigator.gpu availability
     const nav = typeof navigator !== 'undefined' ? (navigator as any) : null;
+    let webgpuError: string | undefined;
+
     if (nav && nav.gpu && typeof nav.gpu.requestAdapter === 'function') {
       try {
-        const adapter = await nav.gpu.requestAdapter();
+        let adapter = await nav.gpu.requestAdapter({ powerPreference: 'high-performance' });
+        if (!adapter) {
+          adapter = await nav.gpu.requestAdapter();
+        }
+
         if (adapter) {
           hasWebGPU = true;
+          try {
+            const device = await adapter.requestDevice();
+            if (device) {
+              // Ensure device is functional
+              device.destroy?.();
+            }
+          } catch (devErr) {
+            console.warn('WebGPU device request warning:', devErr);
+          }
 
           // Request adapter info if supported by browser
           try {
@@ -171,10 +187,22 @@ export async function detectGPUCapabilities(): Promise<GPUCapabilities> {
     }
 
     let tier: GPUTier = 'canvas2d-fallback';
+    let diagnosis = 'Hardware detection initialized.';
+
     if (hasWebGPU) {
       tier = 'webgpu-full';
+      diagnosis = `WebGPU active (${adapterInfo.description || adapterInfo.vendor || 'Hardware Accelerated'}).`;
     } else if (webgl2Info.hasWebGL2) {
       tier = 'webgl2-fallback';
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        diagnosis = 'WebGPU unavailable because page is not running in a Secure Context (HTTPS or localhost). Falling back to WebGL2.';
+      } else if (webgpuError) {
+        diagnosis = `WebGPU initialization note: ${webgpuError}. Falling back to WebGL2.`;
+      } else {
+        diagnosis = 'WebGPU adapter returned null in current browser environment. Falling back to WebGL2.';
+      }
+    } else {
+      diagnosis = 'Neither WebGPU nor WebGL2 is supported in current browser environment. Canvas2D active.';
     }
 
     cachedCapabilities = {
@@ -189,6 +217,7 @@ export async function detectGPUCapabilities(): Promise<GPUCapabilities> {
       isMobile,
       isTouch,
       unmaskedRenderer: webgl2Info.unmaskedRenderer,
+      diagnosis,
     };
 
     return cachedCapabilities;

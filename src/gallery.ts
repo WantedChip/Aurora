@@ -14,11 +14,13 @@ import { generateRandomSeed } from './lib/prng';
 import { detectGPUCapabilities, formatGPUTelemetryBadge } from './lib/gpu';
 import { router } from './lib/router';
 import { HeroSimulation } from './lib/hero-sim';
+import { MiniPreviewManager } from './lib/mini-previews';
 
 export class GalleryView {
   private container: HTMLElement | null = null;
   private lenis: Lenis | null = null;
   private heroSim: HeroSimulation | null = null;
+  private miniPreviewManager: MiniPreviewManager | null = null;
   private abortController: AbortController | null = null;
 
   private activeCategory: RoomCategory | 'all' = 'all';
@@ -34,6 +36,7 @@ export class GalleryView {
   public async mount(container: HTMLElement): Promise<void> {
     this.container = container;
     this.abortController = new AbortController();
+    this.miniPreviewManager = new MiniPreviewManager();
 
     this.renderDOM();
     this.setupLenis();
@@ -51,6 +54,11 @@ export class GalleryView {
     if (this.searchDebounceTimer !== null) {
       clearTimeout(this.searchDebounceTimer);
       this.searchDebounceTimer = null;
+    }
+
+    if (this.miniPreviewManager) {
+      this.miniPreviewManager.destroy();
+      this.miniPreviewManager = null;
     }
 
     if (this.abortController) {
@@ -662,6 +670,8 @@ export class GalleryView {
     const grid = document.getElementById('exhibit-grid');
     if (!grid) return;
 
+    this.miniPreviewManager?.unregisterAll();
+
     if (this.filteredRooms.length === 0) {
       grid.innerHTML = `
         <div class="empty-results-placard">
@@ -772,6 +782,15 @@ export class GalleryView {
         </div>
       `;
     }
+
+    // Register all preview canvases with the IntersectionObserver throttler
+    const canvases = grid.querySelectorAll<HTMLCanvasElement>('.card-preview-canvas');
+    canvases.forEach(canvas => {
+      const roomId = canvas.dataset.roomId;
+      if (roomId && this.miniPreviewManager) {
+        this.miniPreviewManager.register(canvas, roomId);
+      }
+    });
 
     // Attach click listeners to cards / list rows
     const items = grid.querySelectorAll<HTMLElement>('.exhibit-card, .exhibit-list-row');

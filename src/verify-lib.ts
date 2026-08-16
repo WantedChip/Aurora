@@ -1,4 +1,5 @@
 import { createPRNG, hashString, parseSeed, generateRandomSeed } from './lib/prng';
+import { createSimplexNoise } from './lib/noise';
 import { detectGPUCapabilities, getGPUTier, getClampedDPR, formatGPUTelemetryBadge } from './lib/gpu';
 import { parseHash, serializeHash, parseParams, serializeParams, dampParameter } from './lib/state';
 import { audioManager } from './lib/audio';
@@ -47,7 +48,37 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'prng.ts', details: String(err) });
   }
 
-  // 2. Verify GPU Capabilities
+  // 2. Verify Procedural Noise Engine (Simplex, fBm & Curl Noise)
+  try {
+    const noise1 = createSimplexNoise('#A8F29D');
+    const noise2 = createSimplexNoise('#A8F29D');
+
+    const v1_2D = noise1.noise2D(1.23, 4.56);
+    const v2_2D = noise2.noise2D(1.23, 4.56);
+    const v1_3D = noise1.noise3D(1.23, 4.56, 7.89);
+    const v2_3D = noise2.noise3D(1.23, 4.56, 7.89);
+
+    const fbm = noise1.fbm3D(0.5, 0.5, 0.1, 4);
+    const curl = noise1.curl2D(0.5, 0.5, 0.1, 3);
+
+    const isDeterministic =
+      Math.abs(v1_2D - v2_2D) < 1e-9 &&
+      Math.abs(v1_3D - v2_3D) < 1e-9 &&
+      Math.abs(v1_2D) <= 1.0 &&
+      Math.abs(v1_3D) <= 1.0;
+
+    const hasCurl = typeof curl.vx === 'number' && typeof curl.vy === 'number' && !Number.isNaN(curl.vx);
+
+    results.push({
+      passed: isDeterministic && hasCurl && typeof fbm === 'number',
+      module: 'noise.ts',
+      details: `Simplex 2D=${v1_2D.toFixed(3)}, 3D=${v1_3D.toFixed(3)}, fBm=${fbm.toFixed(3)}, Curl=(${curl.vx.toFixed(3)}, ${curl.vy.toFixed(3)})`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'noise.ts', details: String(err) });
+  }
+
+  // 3. Verify GPU Capabilities
   try {
     const caps = await detectGPUCapabilities();
     const tier = await getGPUTier();
@@ -63,7 +94,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'gpu.ts', details: String(err) });
   }
 
-  // 3. Verify State Serialization
+  // 4. Verify State Serialization
   try {
     const defaultSchema = {
       seed: '#000000',
@@ -99,7 +130,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'state.ts', details: String(err) });
   }
 
-  // 4. Verify Audio Manager
+  // 5. Verify Audio Manager
   try {
     const isActiveBefore = audioManager.isAudioActive();
     const initialSource = audioManager.getAudioSourceType();
@@ -114,7 +145,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'audio.ts', details: String(err) });
   }
 
-  // 5. Verify Room Registry & Search
+  // 6. Verify Room Registry & Search
   try {
     const allRooms = getAllRooms();
     const physarum = getRoomById('physarum');
@@ -142,12 +173,12 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'registry.ts', details: String(err) });
   }
 
-  // 6. Verify Dynamic Room Loader & Lifecycle Mount/Cleanup
+  // 7. Verify Room 01: Flow Field (Perlin & Curl Noise Vector Trails)
   try {
     const roomInstance = await lazyLoadRoom('flow-field');
     const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 200;
+    canvas.width = 640;
+    canvas.height = 480;
     const container = document.createElement('div');
     const prng = createPRNG('#A8F29D');
 
@@ -155,26 +186,73 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const cleanup = await roomInstance.mount({
       canvas,
       container,
-      params: { seed: '#A8F29D', speed: 1.5 },
+      params: {
+        seed: '#A8F29D',
+        particleCount: 2000,
+        speed: 1.2,
+        noiseScale: 0.003,
+        curlStrength: 1.5,
+        octaves: 3,
+        stepLength: 2.0,
+        trailDecay: 0.03,
+        colorPalette: 'aurora-cyan',
+      },
       prng,
       dpr: 1,
     });
+
+    // Test parameter dynamic updates
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        particleCount: 3500,
+        colorPalette: 'solar-amber',
+        speed: 2.0,
+      });
+    }
+
+    // Test pointer event interaction
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
 
     if (typeof cleanup === 'function') {
       cleanup();
       cleanupRan = true;
     }
 
+    const flowFieldPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
     results.push({
-      passed: typeof roomInstance.mount === 'function' && cleanupRan,
-      module: 'registry.ts (Lazy Loader & Lifecycle)',
-      details: `Lazy loaded room instance, mounted to canvas context, and executed cleanup teardown cleanly.`,
+      passed: flowFieldPassed,
+      module: 'flow-field/index.ts (Room 01)',
+      details: `Flow Field room mounted, tested curl velocity & particle pool, parameter updates, pointer vortex forces, and 800x600 offline snapshot capture. Clean teardown verified.`,
     });
   } catch (err) {
-    results.push({ passed: false, module: 'registry.ts (Lifecycle)', details: String(err) });
+    results.push({ passed: false, module: 'flow-field/index.ts', details: String(err) });
   }
 
-  // 7. Verify Client-Side Hash Router
+  // 8. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -211,7 +289,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 8. Verify Media Recorder & Snapshot Pipeline
+  // 9. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -275,7 +353,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 9. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 10. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

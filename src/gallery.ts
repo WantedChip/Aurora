@@ -4,7 +4,12 @@
  */
 
 import Lenis from 'lenis';
-import { ROOM_CATALOG } from './rooms/registry';
+import {
+  ROOM_CATALOG,
+  getCategories,
+  searchRooms,
+} from './rooms/registry';
+import type { RoomCategory, RoomMetadata } from './rooms/types';
 import { generateRandomSeed } from './lib/prng';
 import { detectGPUCapabilities, formatGPUTelemetryBadge } from './lib/gpu';
 import { router } from './lib/router';
@@ -15,7 +20,13 @@ export class GalleryView {
   private lenis: Lenis | null = null;
   private heroSim: HeroSimulation | null = null;
   private abortController: AbortController | null = null;
+
+  private activeCategory: RoomCategory | 'all' = 'all';
+  private searchQuery = '';
+  private layoutMode: 'grid' | 'list' = 'grid';
+  private filteredRooms: RoomMetadata[] = [...ROOM_CATALOG];
   private isModalOpen = false;
+  private searchDebounceTimer: number | null = null;
 
   /**
    * Assembles and mounts the complete landing page gallery shell into the specified DOM element.
@@ -27,14 +38,21 @@ export class GalleryView {
     this.renderDOM();
     this.setupLenis();
     this.setupHeroSimulation();
+    this.setupToolbar();
+    this.renderExhibits();
     this.setupEventListeners();
     this.updateTelemetry();
   }
 
   /**
-   * Tears down the gallery view, cleans up Lenis, and removes DOM event listeners.
+   * Tears down the gallery view, cleans up Lenis, simulation loops, and removes DOM event listeners.
    */
   public destroy(): void {
+    if (this.searchDebounceTimer !== null) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
@@ -57,15 +75,76 @@ export class GalleryView {
   }
 
   /**
-   * Initializes the ambient hero curl-noise simulation canvas.
+   * Sets the active curatorial category and filters the exhibit catalog.
    */
-  private setupHeroSimulation(): void {
-    const canvas = document.getElementById('hero-ambient-canvas') as HTMLCanvasElement | null;
-    const heroSection = document.getElementById('hero-section');
-    if (!canvas || !heroSection) return;
+  public setCategory(category: RoomCategory | 'all'): void {
+    if (this.activeCategory === category) return;
+    this.activeCategory = category;
 
-    this.heroSim = new HeroSimulation();
-    this.heroSim.mount(canvas, heroSection);
+    // Update active state in pills UI
+    const pills = document.querySelectorAll<HTMLButtonElement>('.filter-pill');
+    pills.forEach(pill => {
+      const isSelected = pill.dataset.category === category;
+      pill.classList.toggle('active', isSelected);
+      pill.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    });
+
+    this.filterAndRender();
+  }
+
+  /**
+   * Updates the search query and filters the exhibit catalog.
+   */
+  public setSearchQuery(query: string): void {
+    this.searchQuery = query.trim();
+    this.filterAndRender();
+  }
+
+  /**
+   * Switches between visual card grid and dense archival list layouts.
+   */
+  public setLayoutMode(mode: 'grid' | 'list'): void {
+    if (this.layoutMode === mode) return;
+    this.layoutMode = mode;
+
+    const gridBtn = document.getElementById('layout-btn-grid');
+    const listBtn = document.getElementById('layout-btn-list');
+
+    if (gridBtn && listBtn) {
+      gridBtn.classList.toggle('active', mode === 'grid');
+      gridBtn.setAttribute('aria-pressed', mode === 'grid' ? 'true' : 'false');
+      listBtn.classList.toggle('active', mode === 'list');
+      listBtn.setAttribute('aria-pressed', mode === 'list' ? 'true' : 'false');
+    }
+
+    this.renderExhibits();
+  }
+
+  /**
+   * Resets all search filters and category selections.
+   */
+  public resetFilters(): void {
+    this.activeCategory = 'all';
+    this.searchQuery = '';
+
+    const searchInput = document.getElementById('gallery-search-input') as HTMLInputElement | null;
+    if (searchInput) {
+      searchInput.value = '';
+    }
+
+    const clearBtn = document.getElementById('search-clear-btn');
+    if (clearBtn) {
+      clearBtn.style.display = 'none';
+    }
+
+    const pills = document.querySelectorAll<HTMLButtonElement>('.filter-pill');
+    pills.forEach(pill => {
+      const isAll = pill.dataset.category === 'all';
+      pill.classList.toggle('active', isAll);
+      pill.setAttribute('aria-selected', isAll ? 'true' : 'false');
+    });
+
+    this.filterAndRender();
   }
 
   /**
@@ -79,7 +158,6 @@ export class GalleryView {
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
 
-    // Prevent body background scroll while modal is active
     if (this.lenis) {
       this.lenis.stop();
     }
@@ -116,6 +194,21 @@ export class GalleryView {
   }
 
   /**
+   * Performs real-time fuzzy filtering and updates DOM.
+   */
+  private filterAndRender(): void {
+    this.filteredRooms = searchRooms(this.searchQuery, this.activeCategory);
+
+    // Update result count readout
+    const countNum = document.getElementById('results-count-num');
+    if (countNum) {
+      countNum.textContent = String(this.filteredRooms.length);
+    }
+
+    this.renderExhibits();
+  }
+
+  /**
    * Initializes the Lenis smooth momentum scroll engine.
    */
   private setupLenis(): void {
@@ -130,6 +223,18 @@ export class GalleryView {
       duration: 1.2,
       easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     });
+  }
+
+  /**
+   * Initializes the ambient hero curl-noise simulation canvas.
+   */
+  private setupHeroSimulation(): void {
+    const canvas = document.getElementById('hero-ambient-canvas') as HTMLCanvasElement | null;
+    const heroSection = document.getElementById('hero-section');
+    if (!canvas || !heroSection) return;
+
+    this.heroSim = new HeroSimulation();
+    this.heroSim.mount(canvas, heroSection);
   }
 
   /**
@@ -239,8 +344,10 @@ export class GalleryView {
             </p>
           </div>
 
-          <!-- Dynamic Mount Points for Future Sub-phases -->
+          <!-- Dynamic Filter & Search Toolbar Mount -->
           <div id="gallery-toolbar" class="gallery-toolbar-mount"></div>
+
+          <!-- Dynamic Exhibit Grid Mount -->
           <div id="exhibit-grid" class="exhibit-grid-mount"></div>
         </main>
 
@@ -264,12 +371,12 @@ export class GalleryView {
               <div class="footer-col">
                 <span class="footer-col-title">Exhibition Disciplines</span>
                 <ul class="footer-links">
-                  <li class="footer-link" data-cat="field-flow">Field &amp; Flow Dynamics</li>
-                  <li class="footer-link" data-cat="art-life">Artificial Life &amp; Turing</li>
-                  <li class="footer-link" data-cat="chaos">Mathematical Chaos &amp; Fractals</li>
-                  <li class="footer-link" data-cat="fluid">Navier-Stokes &amp; Isosurfaces</li>
-                  <li class="footer-link" data-cat="cosmic">Cosmic Density Waves</li>
-                  <li class="footer-link" data-cat="audio">Audio-Reactive Optics</li>
+                  <li class="footer-link footer-cat-link" data-cat="field-flow">Field &amp; Flow Dynamics</li>
+                  <li class="footer-link footer-cat-link" data-cat="art-life">Artificial Life &amp; Turing</li>
+                  <li class="footer-link footer-cat-link" data-cat="chaos">Mathematical Chaos &amp; Fractals</li>
+                  <li class="footer-link footer-cat-link" data-cat="fluid">Navier-Stokes &amp; Isosurfaces</li>
+                  <li class="footer-link footer-cat-link" data-cat="cosmic">Cosmic Density Waves</li>
+                  <li class="footer-link footer-cat-link" data-cat="audio">Audio-Reactive Optics</li>
                 </ul>
               </div>
 
@@ -413,6 +520,10 @@ export class GalleryView {
                     <kbd class="shortcut-key">?</kbd>
                   </div>
                   <div class="shortcut-row">
+                    <span class="shortcut-desc">Focus Search Filter</span>
+                    <kbd class="shortcut-key">/</kbd>
+                  </div>
+                  <div class="shortcut-row">
                     <span class="shortcut-desc">Close Modal / Back</span>
                     <kbd class="shortcut-key">Esc</kbd>
                   </div>
@@ -429,7 +540,7 @@ export class GalleryView {
             </div>
 
             <div class="modal-footer">
-              <span>Aurora v0.2.0 • Obsidian Archival Minimal</span>
+              <span>Aurora v0.2.2 • Obsidian Archival Minimal</span>
               <span>Press <kbd style="color: var(--accent-cyan);">Esc</kbd> to close</span>
             </div>
           </div>
@@ -439,7 +550,253 @@ export class GalleryView {
   }
 
   /**
-   * Attaches interactive event listeners to buttons, modal triggers, and keyboard shortcuts.
+   * Assembles the category filter ribbon, search bar, and layout toggle into `#gallery-toolbar`.
+   */
+  private setupToolbar(): void {
+    const toolbar = document.getElementById('gallery-toolbar');
+    if (!toolbar) return;
+
+    const categories = getCategories();
+
+    toolbar.innerHTML = `
+      <div class="gallery-toolbar">
+        <!-- Category Filter Pills -->
+        <div class="filter-pills-row" role="tablist" aria-label="Curatorial Categories">
+          ${categories
+            .map(
+              cat => `
+            <button
+              type="button"
+              class="filter-pill ${this.activeCategory === cat.id ? 'active' : ''}"
+              data-category="${cat.id}"
+              role="tab"
+              aria-selected="${this.activeCategory === cat.id ? 'true' : 'false'}"
+            >
+              ${cat.id !== 'all' ? `<span class="category-dot cat-${cat.id}"></span>` : ''}
+              <span class="pill-name">${cat.name}</span>
+              <span class="pill-count">${cat.count}</span>
+            </button>
+          `
+            )
+            .join('')}
+        </div>
+
+        <!-- Controls Row: Search Input & Layout Switcher -->
+        <div class="toolbar-controls-row">
+          <div class="search-input-wrapper">
+            <span class="search-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            <input
+              type="search"
+              id="gallery-search-input"
+              class="gallery-search-input"
+              placeholder="Filter by algorithm, technique, or math... (Press '/' to search)"
+              aria-label="Filter exhibits by title, algorithm, tech, or tags"
+              autocomplete="off"
+              spellcheck="false"
+              value="${this.searchQuery}"
+            />
+            <button type="button" id="search-clear-btn" class="search-clear-btn" aria-label="Clear search" style="${
+              this.searchQuery ? 'display: flex;' : 'display: none;'
+            }">✕</button>
+            <kbd class="search-shortcut-hint" aria-hidden="true">/</kbd>
+          </div>
+
+          <div class="toolbar-actions">
+            <div class="results-badge" id="results-count-badge">
+              <span>Showing <strong id="results-count-num">${this.filteredRooms.length}</strong> exhibits</span>
+            </div>
+
+            <div class="layout-toggle-group" role="group" aria-label="Layout view">
+              <button
+                type="button"
+                class="layout-btn ${this.layoutMode === 'grid' ? 'active' : ''}"
+                id="layout-btn-grid"
+                data-layout="grid"
+                title="Grid View"
+                aria-label="Grid view"
+                aria-pressed="${this.layoutMode === 'grid' ? 'true' : 'false'}"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Grid</span>
+              </button>
+              <button
+                type="button"
+                class="layout-btn ${this.layoutMode === 'list' ? 'active' : ''}"
+                id="layout-btn-list"
+                data-layout="list"
+                title="List View"
+                aria-label="List view"
+                aria-pressed="${this.layoutMode === 'list' ? 'true' : 'false'}"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                <span>List</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the filtered exhibits in either Grid or List mode into `#exhibit-grid`.
+   */
+  private renderExhibits(): void {
+    const grid = document.getElementById('exhibit-grid');
+    if (!grid) return;
+
+    if (this.filteredRooms.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-results-placard">
+          <div class="empty-icon-wrap">
+            <span class="empty-symbol">✦</span>
+          </div>
+          <h3 class="empty-title">No Generative Systems Found</h3>
+          <p class="empty-desc">
+            No exhibits match the query <strong class="empty-query-term">"${this.searchQuery || this.activeCategory}"</strong>.
+          </p>
+          <div class="empty-suggestions">
+            <span>Try searching for algorithms such as:</span>
+            <div class="suggestion-chips">
+              <button type="button" class="chip-btn" data-query="curl">curl noise</button>
+              <button type="button" class="chip-btn" data-query="turing">turing</button>
+              <button type="button" class="chip-btn" data-query="webgpu">webgpu</button>
+              <button type="button" class="chip-btn" data-query="fluid">navier-stokes</button>
+              <button type="button" class="chip-btn" data-query="fractal">raymarching</button>
+            </div>
+          </div>
+          <button type="button" class="btn-reset-filters" id="btn-reset-filters">
+            <span>Reset All Filters</span>
+            <span>↻</span>
+          </button>
+        </div>
+      `;
+
+      const resetBtn = grid.querySelector('#btn-reset-filters');
+      resetBtn?.addEventListener('click', () => this.resetFilters());
+
+      const chips = grid.querySelectorAll<HTMLButtonElement>('.chip-btn');
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          const query = chip.dataset.query || '';
+          const searchInput = document.getElementById('gallery-search-input') as HTMLInputElement | null;
+          if (searchInput) {
+            searchInput.value = query;
+          }
+          this.setSearchQuery(query);
+        });
+      });
+
+      return;
+    }
+
+    if (this.layoutMode === 'grid') {
+      grid.innerHTML = `
+        <div class="exhibits-container exhibits-grid-view">
+          ${this.filteredRooms
+            .map(
+              room => `
+            <article class="exhibit-card" data-id="${room.id}" data-category="${room.category}" role="button" tabindex="0" aria-label="${room.name}">
+              <div class="card-preview-wrapper">
+                <canvas class="card-preview-canvas" data-room-id="${room.id}" width="320" height="200"></canvas>
+                <div class="card-badges">
+                  <span class="badge-index">${room.indexDisplay}</span>
+                  <span class="badge-tech">${room.backendDisplay}</span>
+                </div>
+                <div class="card-overlay-cta">
+                  <span>Enter Room &rarr;</span>
+                </div>
+              </div>
+              <div class="card-placard">
+                <div class="card-category-indicator">
+                  <span class="category-dot cat-${room.category}"></span>
+                  <span class="category-name">${room.categoryName}</span>
+                </div>
+                <h3 class="card-title">${room.name}</h3>
+                <p class="card-desc">${room.description}</p>
+                <div class="card-footer-meta">
+                  <span class="card-math-tag">${room.mathModel}</span>
+                  ${room.tags && room.tags[0] ? `<span class="card-tag-pill">#${room.tags[0]}</span>` : ''}
+                </div>
+              </div>
+            </article>
+          `
+            )
+            .join('')}
+        </div>
+      `;
+    } else {
+      grid.innerHTML = `
+        <div class="exhibits-container exhibits-list-view">
+          ${this.filteredRooms
+            .map(
+              room => `
+            <article class="exhibit-list-row" data-id="${room.id}" data-category="${room.category}" role="button" tabindex="0" aria-label="${room.name}">
+              <div class="list-col-index">${room.indexDisplay}</div>
+              <div class="list-col-preview">
+                <canvas class="card-preview-canvas list-preview-canvas" data-room-id="${room.id}" width="64" height="40"></canvas>
+              </div>
+              <div class="list-col-info">
+                <h3 class="list-title">${room.name}</h3>
+                <div class="list-meta-category">
+                  <span class="category-dot cat-${room.category}"></span>
+                  <span>${room.categoryName}</span>
+                </div>
+              </div>
+              <div class="list-col-math">${room.mathModel}</div>
+              <div class="list-col-backend">
+                <span class="badge-tech">${room.backendDisplay}</span>
+              </div>
+              <div class="list-col-action">Enter &rarr;</div>
+            </article>
+          `
+            )
+            .join('')}
+        </div>
+      `;
+    }
+
+    // Attach click listeners to cards / list rows
+    const items = grid.querySelectorAll<HTMLElement>('.exhibit-card, .exhibit-list-row');
+    items.forEach(item => {
+      const roomId = item.dataset.id;
+      if (!roomId) return;
+
+      const navigate = () => {
+        const metadata = ROOM_CATALOG.find(r => r.id === roomId);
+        const seed = metadata?.defaultParams?.seed || generateRandomSeed();
+        router.navigateToRoom(roomId, { seed });
+      };
+
+      item.addEventListener('click', navigate);
+      item.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate();
+        }
+      });
+    });
+  }
+
+  /**
+   * Attaches interactive event listeners to toolbar buttons, filter pills, search input, and keyboard shortcuts.
    */
   private setupEventListeners(): void {
     const signal = this.abortController?.signal;
@@ -473,6 +830,20 @@ export class GalleryView {
     const footerRandom = document.getElementById('footer-link-random');
     footerRandom?.addEventListener('click', () => this.handleRandomRoom(), { signal });
 
+    // Footer Category Filter Links
+    const footerCatLinks = document.querySelectorAll<HTMLElement>('.footer-cat-link');
+    footerCatLinks.forEach(link => {
+      link.addEventListener(
+        'click',
+        () => {
+          const cat = (link.dataset.cat || 'all') as RoomCategory | 'all';
+          this.setCategory(cat);
+          this.lenis?.scrollTo('#gallery-section', { offset: -64, duration: 1.0 });
+        },
+        { signal }
+      );
+    });
+
     // Back to Top Button
     const topBtn = document.getElementById('footer-btn-top');
     topBtn?.addEventListener(
@@ -482,6 +853,63 @@ export class GalleryView {
       },
       { signal }
     );
+
+    // Category Pill Clicks
+    const toolbar = document.getElementById('gallery-toolbar');
+    toolbar?.addEventListener(
+      'click',
+      e => {
+        const target = (e.target as HTMLElement).closest<HTMLButtonElement>('.filter-pill');
+        if (target && target.dataset.category) {
+          this.setCategory(target.dataset.category as RoomCategory | 'all');
+        }
+      },
+      { signal }
+    );
+
+    // Search Input Real-Time Querying (Debounced 100ms)
+    const searchInput = document.getElementById('gallery-search-input') as HTMLInputElement | null;
+    const clearBtn = document.getElementById('search-clear-btn');
+
+    searchInput?.addEventListener(
+      'input',
+      () => {
+        const val = searchInput.value;
+        if (clearBtn) {
+          clearBtn.style.display = val ? 'flex' : 'none';
+        }
+
+        if (this.searchDebounceTimer !== null) {
+          clearTimeout(this.searchDebounceTimer);
+        }
+
+        this.searchDebounceTimer = window.setTimeout(() => {
+          this.setSearchQuery(val);
+        }, 100);
+      },
+      { signal }
+    );
+
+    // Clear Search Button
+    clearBtn?.addEventListener(
+      'click',
+      () => {
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
+        clearBtn.style.display = 'none';
+        this.setSearchQuery('');
+      },
+      { signal }
+    );
+
+    // Layout Switcher Buttons
+    const gridBtn = document.getElementById('layout-btn-grid');
+    const listBtn = document.getElementById('layout-btn-list');
+
+    gridBtn?.addEventListener('click', () => this.setLayoutMode('grid'), { signal });
+    listBtn?.addEventListener('click', () => this.setLayoutMode('list'), { signal });
 
     // About Modal Triggers
     const aboutBtn = document.getElementById('header-btn-about');
@@ -513,14 +941,32 @@ export class GalleryView {
       'keydown',
       e => {
         // Close modal on Escape
-        if (e.key === 'Escape' && this.isModalOpen) {
-          this.closeAboutModal();
+        if (e.key === 'Escape') {
+          if (this.isModalOpen) {
+            this.closeAboutModal();
+            return;
+          }
+          if (document.activeElement === searchInput && searchInput) {
+            searchInput.blur();
+            return;
+          }
+        }
+
+        // Focus search on '/' (unless already in input or modal open)
+        const target = e.target as HTMLElement;
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+        if (!isInput && !this.isModalOpen && e.key === '/') {
+          e.preventDefault();
+          if (searchInput) {
+            this.lenis?.scrollTo('#gallery-toolbar', { offset: -80, duration: 0.5 });
+            searchInput.focus();
+            searchInput.select();
+          }
           return;
         }
 
         // Open modal on '?' or 'i' (unless typing in input)
-        const target = e.target as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
         if (!isInput && (e.key === '?' || e.key === 'i' || e.key === 'I')) {
           e.preventDefault();
           this.toggleAboutModal();

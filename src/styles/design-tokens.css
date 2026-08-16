@@ -1,0 +1,142 @@
+/**
+ * Aurora Design Tokens
+ * Aesthetic Direction: Obsidian Archival Minimal
+ * Target: Zero-Backend WebGPU Generative Art Observatory
+ */
+
+:root {
+  /* Typography Families */
+  --font-display: 'Syne', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography Scale */
+  --text-display-2xl: 4rem;      /* 64px */
+  --text-display-xl: 3rem;       /* 48px */
+  --text-heading-1: 2rem;        /* 32px */
+  --text-heading-2: 1.5rem;      /* 24px */
+  --text-heading-3: 1.125rem;    /* 18px */
+  --text-body-lg: 1rem;          /* 16px */
+  --text-body-reg: 0.875rem;     /* 14px */
+  --text-caption: 0.75rem;       /* 12px */
+  --text-mono-head: 0.875rem;    /* 14px */
+  --text-mono-badge: 0.6875rem;  /* 11px */
+  --text-mono-code: 0.75rem;     /* 12px */
+
+  /* Line Heights */
+  --leading-tight: 1.05;
+  --leading-snug: 1.20;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.60;
+
+  /* Tracking / Letter Spacing */
+  --tracking-tight-2xl: -0.035em;
+  --tracking-tight-xl: -0.030em;
+  --tracking-tight-lg: -0.020em;
+  --tracking-tight-md: -0.015em;
+  --tracking-normal: 0.000em;
+  --tracking-wide: 0.020em;
+  --tracking-mono-wide: 0.040em;
+  --tracking-badge: 0.060em;
+
+  /* Color Palette - Base Obsidian Surfaces */
+  --bg-void: #090a0d;
+  --bg-surface-1: #11141c;
+  --bg-surface-2: #181c26;
+  --bg-surface-3: #222736;
+
+  /* Structural Hairlines & Focus */
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-subtle-2: rgba(255, 255, 255, 0.12);
+  --border-focus: #00f0ff;
+  --border-highlight: rgba(0, 240, 255, 0.35);
+
+  /* Typography Colors */
+  --text-primary: #f4f6fb;
+  --text-secondary: #a0a6b8;
+  --text-muted: #7e87a0;
+  --text-disabled: #444c60;
+
+  /* Spectral Accents & Telemetry */
+  --accent-cyan: #00f0ff;
+  --accent-mint: #00ff9d;
+  --accent-amber: #ffb800;
+  --accent-crimson: #ff3366;
+  --accent-violet: #a855f7;
+  --accent-blue: #38bdf8;
+
+  /* Curatorial Category Spectral Accents */
+  --cat-field-flow: #00f0ff;       /* Electric Cyan */
+  --cat-art-life: #00ff9d;         /* Phosphor Mint */
+  --cat-chaos: #ffb800;            /* Solar Amber */
+  --cat-fluid: #38bdf8;            /* Hydro Blue */
+  --cat-cosmic: #c084fc;           /* Spectral Nebula */
+  --cat-audio: #ff3366;            /* Laser Crimson */
+
+  /* Spacing Scale (4px Base Metric) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* Corner Radius Scale */
+  --radius-none: 0px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-full: 9999px;
+
+  /* Shadows & Optical Glows */
+  --shadow-card: 0 8px 32px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow-card-hover: 0 16px 48px -8px rgba(0, 0, 0, 0.85), 0 0 24px -4px rgba(0, 240, 255, 0.20), 0 0 0 1px rgba(0, 240, 255, 0.40);
+  --shadow-dock: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --shadow-glow-cyan: 0 0 16px rgba(0, 240, 255, 0.35);
+  --shadow-glow-amber: 0 0 16px rgba(255, 184, 0, 0.35);
+
+  /* Backdrop Glass Blurs */
+  --backdrop-blur-hud: blur(16px) saturate(140%);
+  --backdrop-blur-modal: blur(12px);
+
+  /* Master Motion Timing Scale */
+  --duration-instant: 100ms;
+  --duration-fast: 180ms;
+  --duration-normal: 280ms;
+  --duration-smooth: 450ms;
+  --duration-cinematic: 700ms;
+
+  /* Easing Curves */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth-lerp: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-linear: linear;
+
+  /* Tweakpane Archival Custom Theme Tokens */
+  --tp-base-background-color: rgba(17, 20, 28, 0.92);
+  --tp-base-shadow-color: rgba(0, 0, 0, 0.70);
+  --tp-button-background-color: #222736;
+  --tp-button-background-color-active: #00f0ff;
+  --tp-button-background-color-focus: #2a3144;
+  --tp-button-background-color-hover: #2a3144;
+  --tp-button-foreground-color: #f4f6fb;
+  --tp-button-foreground-color-active: #090a0d;
+  --tp-container-background-color: rgba(24, 28, 38, 0.80);
+  --tp-container-background-color-active: rgba(34, 39, 54, 0.90);
+  --tp-container-background-color-focus: rgba(34, 39, 54, 0.80);
+  --tp-container-background-color-hover: rgba(30, 35, 48, 0.80);
+  --tp-container-foreground-color: #f4f6fb;
+  --tp-groove-foreground-color: rgba(0, 0, 0, 0.50);
+  --tp-input-background-color: #0f1117;
+  --tp-input-background-color-active: #181c26;
+  --tp-input-background-color-focus: #181c26;
+  --tp-input-background-color-hover: #141720;
+  --tp-input-foreground-color: #00f0ff;
+  --tp-label-foreground-color: #a0a6b8;
+  --tp-blade-border-radius: 4px;
+}

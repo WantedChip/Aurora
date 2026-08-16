@@ -1,0 +1,43 @@
+/**
+ * Aurora Tweakpane Custom Archival Theme
+ */
+
+.tp-dfwv {
+  font-family: var(--font-mono) !important;
+  font-size: var(--text-mono-code) !important;
+  border: 1px solid var(--border-subtle-2) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-dock) !important;
+  backdrop-filter: var(--backdrop-blur-hud) !important;
+  z-index: 100 !important;
+}
+
+.tp-rotv_b {
+  border-radius: var(--radius-md) !important;
+}
+
+.tp-fldv {
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-sm) !important;
+  margin-bottom: var(--space-2) !important;
+}
+
+.tp-fldv_t {
+  font-family: var(--font-display) !important;
+  font-size: 0.8rem !important;
+  letter-spacing: var(--tracking-wide) !important;
+  text-transform: uppercase !important;
+  color: var(--text-secondary) !important;
+}
+
+.tp-lblv_l {
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-caption) !important;
+  color: var(--text-secondary) !important;
+}
+
+.tp-txtv_i,
+.tp-sldtxtv_t {
+  font-family: var(--font-mono) !important;
+  color: var(--accent-cyan) !important;
+}

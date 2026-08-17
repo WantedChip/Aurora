@@ -883,7 +883,11 @@ export class RoomViewer {
               this.debounceSyncURL();
             });
 
-            folder.element.appendChild(stepperContainer);
+            if (folder.element && typeof folder.element.appendChild === 'function') {
+              folder.element.appendChild(stepperContainer);
+            } else if (targetContainer && typeof targetContainer.appendChild === 'function') {
+              targetContainer.appendChild(stepperContainer);
+            }
           }
         } else if (ctrl.type === 'select' && ctrl.options) {
           const optionsObj: Record<string, any> = {};
@@ -1620,7 +1624,7 @@ export class RoomViewer {
         ? this.mobileDrawer?.querySelector<HTMLElement>('#room-mobile-drawer-body')
         : this.controlDock;
 
-      if (target && this.pane && this.pane.element.parentElement !== target) {
+      if (target && this.pane?.element && this.pane.element.parentElement !== target) {
         target.appendChild(this.pane.element);
       }
     }, 50);

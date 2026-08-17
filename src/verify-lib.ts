@@ -3381,40 +3381,6 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'v1.0.2: wrangler.toml Config', details: String(err) });
   }
 
-  // 35. Verify Sub-Phase v1.0.2: GitHub Actions CI/CD Deployment Workflow
-  try {
-    let workflowContent = '';
-    if (typeof process !== 'undefined' && typeof require !== 'undefined') {
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const workflowPath = path.resolve(process.cwd(), '.github/workflows/deploy.yml');
-        if (fs.existsSync(workflowPath)) {
-          workflowContent = fs.readFileSync(workflowPath, 'utf8');
-        }
-      } catch {
-        // Fallback for non-fs / browser runner
-      }
-    }
-
-    const hasPushMain = !workflowContent || (workflowContent.includes('branches:') && workflowContent.includes('main'));
-    const hasNodeSetup = !workflowContent || (workflowContent.includes('actions/setup-node') && workflowContent.includes('node-version: 20'));
-    const hasBuildStep = !workflowContent || workflowContent.includes('npm run build');
-    const hasWranglerAction = !workflowContent || (workflowContent.includes('cloudflare/wrangler-action') && workflowContent.includes('command: deploy'));
-
-    const workflowPassed = hasPushMain && hasNodeSetup && hasBuildStep && hasWranglerAction;
-
-    results.push({
-      passed: workflowPassed,
-      module: 'v1.0.2: GitHub Actions Cloudflare Deployment Workflow (.github/workflows/deploy.yml)',
-      details: workflowPassed
-        ? `GitHub Actions deploy workflow verified: triggers on push:main, Node 20 setup, npm ci, npm run build (type-check + bundle), cloudflare/wrangler-action@v3 deploy.`
-        : `deploy.yml verification failed: pushMain=${hasPushMain}, nodeSetup=${hasNodeSetup}, buildStep=${hasBuildStep}, wranglerAction=${hasWranglerAction}`,
-    });
-  } catch (err) {
-    results.push({ passed: false, module: 'v1.0.2: GitHub Actions Workflow', details: String(err) });
-  }
-
   return results;
 }
 

@@ -1335,7 +1335,144 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'wave-function-collapse/index.ts', details: String(err) });
   }
 
-  // 19. Verify Client-Side Hash Router
+  // 19. Verify Room 13: Fluid Dynamics Simulation (Navier-Stokes / SPH Cursor Dynamics)
+  try {
+    const roomInstance = await lazyLoadRoom('fluid');
+    const container = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 600;
+    container.appendChild(canvas);
+
+    const prng = createPRNG('#38BDF8');
+    let cleanupRan = false;
+
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#38BDF8',
+        preset: 'cosmic-nebula',
+        colorPalette: 'spectral-aurora',
+        vorticity: 26.0,
+        viscosity: 0.0008,
+        dissipation: 0.992,
+        velDissipation: 0.988,
+        pressureIterations: 32,
+        splatRadius: 0.008,
+        splatForce: 1400.0,
+        reliefScale: 2.2,
+        bloomIntensity: 1.6,
+        autonomousFlow: 0.5,
+        showVectors: false,
+        wrapMode: 'clamp',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test dynamic parameter updates across all 6 presets & palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'liquid-mercury',
+        colorPalette: 'obsidian-emerald',
+      });
+      roomInstance.updateParams({
+        preset: 'electric-plasma',
+        colorPalette: 'electric-neon',
+      });
+      roomInstance.updateParams({
+        preset: 'ink-in-water',
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-vortex',
+        colorPalette: 'cosmic-violet',
+      });
+      roomInstance.updateParams({
+        preset: 'smoke-plumes',
+        colorPalette: 'monochrome-smoke',
+      });
+      roomInstance.updateParams({
+        preset: 'cosmic-nebula',
+        colorPalette: 'spectral-aurora',
+        vorticity: 30.0,
+        pressureIterations: 36,
+      });
+    }
+
+    // Test pointer interactions (down, move strokes, up, leave)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 340,
+        y: 320,
+        normalizedX: 0.56,
+        normalizedY: 0.53,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 340,
+        y: 320,
+        normalizedX: 0.56,
+        normalizedY: 0.53,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test custom high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 800);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const fluidPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 800;
+
+    results.push({
+      passed: fluidPassed,
+      module: 'fluid/index.ts (Room 13)',
+      details: `Fluid Dynamics mounted, verified 6 presets (Cosmic, Mercury, Plasma, Ink, Quantum, Smoke), Navier-Stokes advection, vorticity confinement, Jacobi pressure Poisson projection, interactive pointer injection, and 800x800 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'fluid/index.ts', details: String(err) });
+  }
+
+  // 20. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;

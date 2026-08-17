@@ -83,9 +83,18 @@ function bootstrap(): void {
   router.start();
 }
 
+// Expose verification runner on window for automated and developer verification
+if (typeof window !== 'undefined') {
+  (window as any).runLibVerification = async () => {
+    const { runLibVerification } = await import('./verify-lib');
+    return runLibVerification();
+  };
+}
+
 // Start application on DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrap);
 } else {
   bootstrap();
 }
+

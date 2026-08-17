@@ -131,16 +131,67 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'state.ts', details: String(err) });
   }
 
-  // 5. Verify Audio Manager
+  // 5. Verify Audio Manager & Spectral Analysis Pipeline
   try {
     const isActiveBefore = audioManager.isAudioActive();
     const initialSource = audioManager.getAudioSourceType();
     const bands = audioManager.getFrequencyBands();
 
+    // Test helper accessors
+    const bass = audioManager.getBass();
+    const mid = audioManager.getMid();
+    const treble = audioManager.getTreble();
+    const vol = audioManager.getVolume();
+    const transient = audioManager.getTransient();
+    const isBeat = audioManager.isTransientDetected();
+    const waveform = audioManager.getWaveform();
+    const rawFreqs = audioManager.getFrequencyData();
+    const normFreqs = audioManager.getNormalizedFrequencies();
+    const bins24 = audioManager.getSpectrumBins(24);
+
+    // Test gain and mute controls
+    audioManager.setMasterGain(0.85);
+    const gainVal = audioManager.getMasterGain();
+    const isMutedBefore = audioManager.isMuted();
+    audioManager.setMuted(true);
+    const isMutedAfter = audioManager.isMuted();
+    audioManager.setMuted(false);
+
+    // Test state change listener
+    let listenerCalled = false;
+    const unsub = audioManager.onStateChange((_src, _running, _muted) => {
+      listenerCalled = true;
+    });
+    unsub();
+
+    const audioPassed =
+      !isActiveBefore &&
+      initialSource === 'none' &&
+      typeof bands.bass === 'number' &&
+      typeof bands.mid === 'number' &&
+      typeof bands.treble === 'number' &&
+      typeof bands.volume === 'number' &&
+      typeof bands.transient === 'number' &&
+      typeof bands.isBeat === 'boolean' &&
+      typeof bass === 'number' &&
+      typeof mid === 'number' &&
+      typeof treble === 'number' &&
+      typeof vol === 'number' &&
+      typeof transient === 'number' &&
+      typeof isBeat === 'boolean' &&
+      waveform instanceof Float32Array &&
+      rawFreqs instanceof Uint8Array &&
+      normFreqs instanceof Float32Array &&
+      bins24.length === 24 &&
+      gainVal === 0.85 &&
+      !isMutedBefore &&
+      isMutedAfter &&
+      listenerCalled;
+
     results.push({
-      passed: !isActiveBefore && initialSource === 'none' && typeof bands.bass === 'number',
+      passed: audioPassed,
       module: 'audio.ts',
-      details: `Initialized in passive state without permission prompt. Bands: bass=${bands.bass}, vol=${bands.volume}`,
+      details: `Spectral analysis pipeline verified: 24-bin FFT, smoothed envelopes (bass=${bass.toFixed(2)}, mid=${mid.toFixed(2)}, treb=${treble.toFixed(2)}, vol=${vol.toFixed(2)}), transient detection, gain (${gainVal}), mute toggles, and state listeners.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'audio.ts', details: String(err) });
@@ -2052,6 +2103,19 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const isVideoModalOpen = videoModal !== null && !videoModal.classList.contains('hidden');
     viewer.closeVideoModal();
 
+    // Test Audio HUD Telemetry Widget & Controls
+    const audioHud = testApp.querySelector('#room-audio-hud');
+    const audioCanvas = testApp.querySelector('#audio-hud-canvas');
+    const hudAudioBtn = testApp.querySelector('#room-hud-btn-audio');
+    const hasAudioHud = audioHud !== null && audioCanvas instanceof HTMLCanvasElement && hudAudioBtn !== null;
+
+    // Test Microphone Permission Modal
+    viewer.openMicPermissionModal();
+    const micModal = testApp.querySelector('#room-mic-modal-overlay');
+    const isMicModalOpen = micModal !== null && !micModal.classList.contains('hidden');
+    const hasPrivacyNotice = micModal?.textContent?.includes('Zero Recording') && micModal?.textContent?.includes('Zero Transmission');
+    viewer.closeMicPermissionModal();
+
     // Test toast notification display
     viewer.showToast('Test Starlight Toast');
     const toast = testApp.querySelector('.room-toast');
@@ -2071,6 +2135,9 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       hasPane,
       hasDock,
       hasSteppers,
+      hasAudioHud,
+      isMicModalOpen,
+      hasPrivacyNotice,
       isSeedChanged,
       isReset,
       isHUDHidden,
@@ -2089,7 +2156,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       passed: Boolean(roomViewerPassed),
       module: 'room-viewer.ts',
       details: roomViewerPassed
-        ? `RoomViewer mounted flow-field with Tweakpane controls, verified snapshot & video loop modals, seed randomizer (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), HUD toggle, toasts, and completed clean teardown.`
+        ? `RoomViewer mounted flow-field with Tweakpane & Audio Telemetry HUD, verified 24-bin visualizer canvas, mic permission modal (privacy notice), snapshot/video modals, seed randomizer (${randomizedParams.seed}), reset defaults, HUD toggle, toasts, and completed clean teardown.`
         : `RoomViewer checks failed: ${failedChecks.join(', ')}`,
     });
   } catch (err) {

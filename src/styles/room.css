@@ -497,6 +497,36 @@
   transform: scale(0.96);
 }
 
+.room-hud-action-btn.state-synth {
+  border-color: rgba(0, 240, 255, 0.35);
+  color: var(--accent-cyan);
+}
+
+.room-hud-action-btn.state-synth:hover {
+  background: rgba(0, 240, 255, 0.12);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+}
+
+.room-hud-action-btn.state-mic {
+  border-color: rgba(255, 51, 102, 0.4);
+  color: var(--accent-crimson);
+}
+
+.room-hud-action-btn.state-mic:hover {
+  background: rgba(255, 51, 102, 0.14);
+  box-shadow: 0 0 12px rgba(255, 51, 102, 0.3);
+}
+
+.room-hud-action-btn.state-muted {
+  border-color: rgba(255, 184, 0, 0.3);
+  color: var(--accent-amber);
+}
+
+.room-hud-action-btn.state-none {
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
+}
+
 /* Icon-only button */
 .room-hud-icon-btn {
   display: inline-flex;
@@ -759,13 +789,18 @@
 .room-viewport-container.hud-dimmed .room-hud-bar,
 .room-viewport-container.hud-dimmed .room-control-dock,
 .room-viewport-container.hud-dimmed .room-gpu-banner,
-.room-viewport-container.hud-dimmed .room-mobile-toggle-btn {
+.room-viewport-container.hud-dimmed .room-mobile-toggle-btn,
+.room-viewport-container.hud-dimmed .room-audio-hud {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-8px);
 }
 
 .room-viewport-container.hud-dimmed .room-mobile-toggle-btn {
+  transform: translateY(8px);
+}
+
+.room-viewport-container.hud-dimmed .room-audio-hud {
   transform: translateY(8px);
 }
 
@@ -776,6 +811,7 @@
 .room-viewport-container.hud-hidden .room-mobile-toggle-btn,
 .room-viewport-container.hud-hidden .room-mobile-drawer,
 .room-viewport-container.hud-hidden .room-drawer-scrim,
+.room-viewport-container.hud-hidden .room-audio-hud,
 .room-viewport-container.hud-hidden .room-toast-container {
   opacity: 0 !important;
   pointer-events: none !important;
@@ -1151,6 +1187,297 @@
 }
 
 /* ==========================================================================
+   Global Audio Reactivity Telemetry HUD Widget
+   ========================================================================== */
+
+.room-audio-hud {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 250px;
+  padding: 10px 14px;
+  background: rgba(17, 20, 28, 0.92);
+  backdrop-filter: var(--backdrop-blur-hud);
+  -webkit-backdrop-filter: var(--backdrop-blur-hud);
+  border: 1px solid var(--border-subtle-2);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dock);
+  transition: opacity var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-normal) var(--ease-out-expo),
+              border-color var(--duration-fast) ease;
+}
+
+.room-audio-hud:hover {
+  border-color: rgba(0, 240, 255, 0.35);
+  box-shadow: var(--shadow-dock), 0 0 16px rgba(0, 240, 255, 0.12);
+}
+
+.audio-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.audio-hud-status-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.audio-hud-source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-badge);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out-expo);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-2);
+  color: var(--text-secondary);
+}
+
+.audio-hud-source-pill.source-synth {
+  color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.12);
+  border-color: rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+}
+
+.audio-hud-source-pill.source-mic {
+  color: var(--accent-crimson);
+  background: rgba(255, 51, 102, 0.14);
+  border-color: rgba(255, 51, 102, 0.4);
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.2);
+}
+
+.audio-hud-source-pill.source-muted {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-subtle);
+}
+
+.audio-hud-source-pill:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+.audio-hud-beat-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-disabled);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 80ms ease;
+  user-select: none;
+}
+
+.audio-hud-beat-pill.active {
+  color: var(--accent-mint);
+  background: rgba(0, 255, 157, 0.2);
+  border-color: var(--accent-mint);
+  box-shadow: 0 0 12px rgba(0, 255, 157, 0.6);
+  transform: scale(1.06);
+}
+
+.audio-hud-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.audio-hud-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.audio-hud-icon-btn:hover {
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.audio-hud-icon-btn.muted {
+  color: var(--accent-amber);
+  border-color: rgba(255, 184, 0, 0.35);
+  background: rgba(255, 184, 0, 0.1);
+}
+
+.audio-hud-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.room-audio-hud.collapsed .audio-hud-body {
+  display: none;
+}
+
+.audio-hud-viz-container {
+  width: 100%;
+  height: 32px;
+  background: var(--bg-void);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-hud-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.audio-hud-telemetry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.audio-hud-stat b {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Microphone Permission Dialogue Modal
+   ========================================================================== */
+
+.room-mic-modal-card {
+  max-width: 520px;
+}
+
+.badge-privacy {
+  color: var(--accent-mint);
+  background: rgba(0, 255, 157, 0.1);
+  border-color: rgba(0, 255, 157, 0.3);
+}
+
+.room-mic-explainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.room-mic-desc {
+  font-family: var(--font-sans);
+  font-size: var(--text-body-reg);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.room-mic-privacy-box {
+  background: var(--bg-surface-2);
+  border: 1px solid rgba(0, 255, 157, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.privacy-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.privacy-icon {
+  font-size: 16px;
+}
+
+.privacy-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--accent-mint);
+}
+
+.privacy-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.privacy-list li strong {
+  color: var(--text-primary);
+}
+
+.room-mic-bands-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.mic-band-item {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.band-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  letter-spacing: 0.03em;
+}
+
+.band-desc {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ==========================================================================
    Responsive Adaptations
    ========================================================================== */
 
@@ -1201,6 +1528,14 @@
     top: 56px;
     padding: var(--space-2) var(--space-3);
     font-size: 11px;
+  }
+
+  .room-audio-hud {
+    bottom: 64px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    padding: 8px 10px;
   }
 
   .room-toast-container {

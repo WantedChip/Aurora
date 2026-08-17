@@ -1,20 +1,32 @@
 /**
  * Aurora Web Audio Engine & Real-Time Spectral Analyser
+ * Direction: Obsidian Archival Minimal
  * 
  * Provides:
  * 1. Procedural ambient harmonic drone synthesis (zero-permission default).
- * 2. Real-time microphone input stream capture via getUserMedia.
- * 3. Spectral analysis & frequency band extraction (Bass, Mid, Treble, Volume, Waveform).
+ * 2. Real-time microphone input stream capture via getUserMedia with privacy guardrails.
+ * 3. Spectral analysis & frequency band extraction (Bass, Mid, Treble, Volume, Waveform, Transient).
+ * 4. Smoothed attack/decay envelope followers & beat transient detection.
+ * 5. Downsampled logarithmic spectrum binning for high-performance visualizer HUDs.
+ * 6. Clean lifecycle management (suspend, resume, mute, stop, dispose).
  */
 
 export type AudioSourceType = 'synth' | 'mic' | 'none';
 
 export interface AudioFrequencyBands {
-  bass: number;     // 0.0 - 1.0 (~20 Hz - 250 Hz)
-  mid: number;      // 0.0 - 1.0 (~250 Hz - 2500 Hz)
-  treble: number;   // 0.0 - 1.0 (~2500 Hz - 12000 Hz)
-  volume: number;   // 0.0 - 1.0 (RMS overall amplitude)
+  bass: number;       // Smoothed normalized [0.0, 1.0] (~20 Hz - 250 Hz)
+  mid: number;        // Smoothed normalized [0.0, 1.0] (~250 Hz - 2500 Hz)
+  treble: number;     // Smoothed normalized [0.0, 1.0] (~2500 Hz - 12000 Hz)
+  volume: number;     // Smoothed RMS overall amplitude [0.0, 1.0]
+  rawBass: number;    // Instantaneous raw normalized bass [0.0, 1.0]
+  rawMid: number;     // Instantaneous raw normalized mid [0.0, 1.0]
+  rawTreble: number;  // Instantaneous raw normalized treble [0.0, 1.0]
+  rawVolume: number;  // Instantaneous raw RMS volume [0.0, 1.0]
+  transient: number;  // Transient energy spike envelope [0.0, 1.0]
+  isBeat: boolean;    // Transient beat detected in current frame
 }
+
+export type AudioStateListener = (source: AudioSourceType, isRunning: boolean, isMuted: boolean) => void;
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -38,10 +50,25 @@ export class AudioManager {
   private timeData: Uint8Array<ArrayBuffer> | null = null;
   private normalizedFreqs: Float32Array<ArrayBuffer> | null = null;
   private normalizedTime: Float32Array<ArrayBuffer> | null = null;
+  private spectrumBinsCache: Float32Array<ArrayBuffer> | null = null;
 
+  // Envelope followers & smoothing
+  private smoothedBass = 0.0;
+  private smoothedMid = 0.0;
+  private smoothedTreble = 0.0;
+  private smoothedVolume = 0.0;
+  private transientEnergy = 0.0;
+  private energyBaseline = 0.1;
+  private lastTransientTime = 0;
+  private isCurrentBeat = false;
+
+  // State
   private currentSource: AudioSourceType = 'none';
   private isInitialized = false;
   private isRunning = false;
+  private isMutedState = false;
+  private lastNonMutedGain = 0.7;
+  private listeners: Set<AudioStateListener> = new Set();
 
   constructor() {
     // Lazy AudioContext initialization on first user interaction
@@ -64,40 +91,44 @@ export class AudioManager {
       return;
     }
 
-    this.ctx = new AudioContextClass();
-    
-    // Analyser setup
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 512;
-    this.analyser.smoothingTimeConstant = 0.82;
+    try {
+      this.ctx = new AudioContextClass();
+      
+      // Analyser setup
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 512;
+      this.analyser.smoothingTimeConstant = 0.82;
 
-    const bufferLength = this.analyser.frequencyBinCount;
-    this.freqData = new Uint8Array(bufferLength);
-    this.timeData = new Uint8Array(bufferLength);
-    this.normalizedFreqs = new Float32Array(bufferLength);
-    this.normalizedTime = new Float32Array(bufferLength);
+      const bufferLength = this.analyser.frequencyBinCount;
+      this.freqData = new Uint8Array(bufferLength);
+      this.timeData = new Uint8Array(bufferLength);
+      this.normalizedFreqs = new Float32Array(bufferLength);
+      this.normalizedTime = new Float32Array(bufferLength);
 
-    // Master gain
-    this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
-    this.masterGain.connect(this.analyser);
+      // Master gain
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.setValueAtTime(this.isMutedState ? 0.0 : this.lastNonMutedGain, this.ctx.currentTime);
+      this.masterGain.connect(this.analyser);
 
-    // Synthesizer sub-gain (connects to master and destination for audio output)
-    this.synthGain = this.ctx.createGain();
-    this.synthGain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-    this.synthGain.connect(this.masterGain);
-    this.synthGain.connect(this.ctx.destination);
+      // Synthesizer sub-gain (connects to master analyser and destination for audio output)
+      this.synthGain = this.ctx.createGain();
+      this.synthGain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+      this.synthGain.connect(this.masterGain);
+      this.synthGain.connect(this.ctx.destination);
 
-    // Mic sub-gain (connects ONLY to master analyser to prevent microphone acoustic feedback loop)
-    this.micGain = this.ctx.createGain();
-    this.micGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-    this.micGain.connect(this.masterGain);
+      // Mic sub-gain (connects ONLY to master analyser to prevent microphone acoustic feedback loop)
+      this.micGain = this.ctx.createGain();
+      this.micGain.gain.setValueAtTime(1.2, this.ctx.currentTime);
+      this.micGain.connect(this.masterGain);
 
-    this.isInitialized = true;
+      this.isInitialized = true;
+    } catch (err) {
+      console.warn('Failed to initialize Web Audio Context:', err);
+    }
   }
 
   /**
-   * Starts procedural ambient chord drone synthesis.
+   * Starts procedural ambient chord drone synthesis (zero permissions needed).
    */
   public async startSynth(): Promise<void> {
     await this.init();
@@ -197,6 +228,7 @@ export class AudioManager {
 
     this.currentSource = 'synth';
     this.isRunning = true;
+    this.notifyStateChange();
   }
 
   /**
@@ -234,6 +266,7 @@ export class AudioManager {
 
       this.currentSource = 'mic';
       this.isRunning = true;
+      this.notifyStateChange();
       return true;
     } catch (err) {
       console.warn('Microphone stream access denied or failed:', err);
@@ -281,11 +314,12 @@ export class AudioManager {
     if (this.currentSource === 'synth') {
       this.currentSource = 'none';
       this.isRunning = false;
+      this.notifyStateChange();
     }
   }
 
   /**
-   * Stops live microphone stream.
+   * Stops live microphone stream and releases audio hardware tracks.
    */
   public stopMic(): void {
     if (this.micSource) {
@@ -296,13 +330,18 @@ export class AudioManager {
     }
 
     if (this.micStream) {
-      this.micStream.getTracks().forEach(track => track.stop());
+      this.micStream.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch {}
+      });
       this.micStream = null;
     }
 
     if (this.currentSource === 'mic') {
       this.currentSource = 'none';
       this.isRunning = false;
+      this.notifyStateChange();
     }
   }
 
@@ -312,15 +351,96 @@ export class AudioManager {
   public stop(): void {
     this.stopSynth();
     this.stopMic();
+    this.smoothedBass = 0;
+    this.smoothedMid = 0;
+    this.smoothedTreble = 0;
+    this.smoothedVolume = 0;
+    this.transientEnergy = 0;
+  }
+
+  /**
+   * Cleanly suspends AudioContext.
+   */
+  public async suspend(): Promise<void> {
+    if (this.ctx && this.ctx.state === 'running') {
+      try {
+        await this.ctx.suspend();
+      } catch (err) {
+        console.warn('Error suspending AudioContext:', err);
+      }
+    }
+  }
+
+  /**
+   * Resumes suspended AudioContext.
+   */
+  public async resume(): Promise<void> {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume();
+      } catch (err) {
+        console.warn('Error resuming AudioContext:', err);
+      }
+    }
   }
 
   /**
    * Sets master output gain [0.0, 1.0].
    */
   public setMasterGain(gain: number): void {
+    const clamped = Math.max(0, Math.min(1, gain));
+    if (clamped > 0) {
+      this.lastNonMutedGain = clamped;
+      if (this.isMutedState) {
+        this.isMutedState = false;
+      }
+    }
     if (this.masterGain && this.ctx) {
-      const clamped = Math.max(0, Math.min(1, gain));
-      this.masterGain.gain.setTargetAtTime(clamped, this.ctx.currentTime, 0.05);
+      this.masterGain.gain.setTargetAtTime(this.isMutedState ? 0.0 : clamped, this.ctx.currentTime, 0.05);
+    }
+    this.notifyStateChange();
+  }
+
+  /**
+   * Gets current master gain setting.
+   */
+  public getMasterGain(): number {
+    return this.isMutedState ? 0.0 : this.lastNonMutedGain;
+  }
+
+  /**
+   * Sets mute state.
+   */
+  public setMuted(muted: boolean): void {
+    this.isMutedState = muted;
+    if (this.masterGain && this.ctx) {
+      const targetGain = muted ? 0.0 : this.lastNonMutedGain;
+      this.masterGain.gain.setTargetAtTime(targetGain, this.ctx.currentTime, 0.05);
+    }
+    this.notifyStateChange();
+  }
+
+  /**
+   * Returns whether audio output is currently muted.
+   */
+  public isMuted(): boolean {
+    return this.isMutedState;
+  }
+
+  /**
+   * Toggles mute state and returns new state.
+   */
+  public toggleMute(): boolean {
+    this.setMuted(!this.isMutedState);
+    return this.isMutedState;
+  }
+
+  /**
+   * Sets analyser FFT smoothing constant [0.0, 1.0].
+   */
+  public setSmoothing(smoothing: number): void {
+    if (this.analyser) {
+      this.analyser.smoothingTimeConstant = Math.max(0.0, Math.min(0.99, smoothing));
     }
   }
 
@@ -375,14 +495,73 @@ export class AudioManager {
   }
 
   /**
-   * Extracts isolated sub-bands: Bass, Mid, Treble, and overall RMS Volume.
+   * Downsamples frequency spectrum into N logarithmic / perceptual visualizer bins in [0.0, 1.0].
+   */
+  public getSpectrumBins(binCount = 16): Float32Array<ArrayBuffer> {
+    const raw = this.getFrequencyData();
+    const len = raw.length;
+
+    if (!this.spectrumBinsCache || this.spectrumBinsCache.length !== binCount) {
+      this.spectrumBinsCache = new Float32Array(binCount);
+    }
+
+    if (len === 0) {
+      this.spectrumBinsCache.fill(0);
+      return this.spectrumBinsCache;
+    }
+
+    // Map bin indices exponentially from 0 to len
+    for (let b = 0; b < binCount; b++) {
+      const startFrac = Math.pow(b / binCount, 2.0);
+      const endFrac = Math.pow((b + 1) / binCount, 2.0);
+      const startIdx = Math.floor(startFrac * (len - 1));
+      const endIdx = Math.max(startIdx + 1, Math.floor(endFrac * len));
+
+      let sum = 0;
+      let count = 0;
+      for (let i = startIdx; i < endIdx && i < len; i++) {
+        sum += raw[i];
+        count++;
+      }
+
+      const avg = count > 0 ? sum / (count * 255.0) : 0;
+      // Soft high-frequency boost for visual balance
+      const boost = 1.0 + (b / binCount) * 0.8;
+      this.spectrumBinsCache[b] = Math.min(1.0, avg * boost);
+    }
+
+    return this.spectrumBinsCache;
+  }
+
+  /**
+   * Extracts isolated sub-bands: Bass, Mid, Treble, RMS Volume, and detects transients.
+   * Returns smoothed attack/decay values [0.0, 1.0] and raw instantaneous values.
    */
   public getFrequencyBands(): AudioFrequencyBands {
     const freqs = this.getFrequencyData();
     const len = freqs.length;
 
-    if (len === 0) {
-      return { bass: 0, mid: 0, treble: 0, volume: 0 };
+    if (len === 0 || !this.isRunning) {
+      // Decay smoothed values to zero
+      this.smoothedBass *= 0.85;
+      this.smoothedMid *= 0.85;
+      this.smoothedTreble *= 0.85;
+      this.smoothedVolume *= 0.85;
+      this.transientEnergy *= 0.82;
+      this.isCurrentBeat = false;
+
+      return {
+        bass: Math.max(0, this.smoothedBass),
+        mid: Math.max(0, this.smoothedMid),
+        treble: Math.max(0, this.smoothedTreble),
+        volume: Math.max(0, this.smoothedVolume),
+        rawBass: 0,
+        rawMid: 0,
+        rawTreble: 0,
+        rawVolume: 0,
+        transient: Math.max(0, this.transientEnergy),
+        isBeat: false,
+      };
     }
 
     // FFT size 512 gives 256 bins. At 44.1kHz sample rate, each bin ≈ 86.1 Hz.
@@ -395,7 +574,7 @@ export class AudioManager {
     for (let i = 0; i < bassEnd; i++) {
       bassSum += freqs[i];
     }
-    const bass = bassSum / (bassEnd * 255.0);
+    const rawBass = bassSum / (bassEnd * 255.0);
 
     let midSum = 0;
     const midEnd = Math.min(25, len);
@@ -403,7 +582,7 @@ export class AudioManager {
     for (let i = bassEnd; i < midEnd; i++) {
       midSum += freqs[i];
     }
-    const mid = midCount > 0 ? midSum / (midCount * 255.0) : 0;
+    const rawMid = midCount > 0 ? midSum / (midCount * 255.0) : 0;
 
     let trebleSum = 0;
     const trebleEnd = Math.min(120, len);
@@ -411,41 +590,147 @@ export class AudioManager {
     for (let i = midEnd; i < trebleEnd; i++) {
       trebleSum += freqs[i];
     }
-    const treble = trebleCount > 0 ? trebleSum / (trebleCount * 255.0) : 0;
+    const rawTreble = trebleCount > 0 ? trebleSum / (trebleCount * 255.0) : 0;
 
     // Overall RMS Volume
     let sumSquares = 0;
     for (let i = 0; i < len; i++) {
-      const normalized = (freqs[i] / 255.0);
+      const normalized = freqs[i] / 255.0;
       sumSquares += normalized * normalized;
     }
-    const volume = Math.sqrt(sumSquares / len);
+    const rawVolume = Math.sqrt(sumSquares / len);
 
-    return { bass, mid, treble, volume };
+    // Apply fast-attack, smooth-decay envelope followers
+    const attack = 0.45;
+    const decay = 0.12;
+
+    this.smoothedBass += (rawBass > this.smoothedBass ? attack : decay) * (rawBass - this.smoothedBass);
+    this.smoothedMid += (rawMid > this.smoothedMid ? attack : decay) * (rawMid - this.smoothedMid);
+    this.smoothedTreble += (rawTreble > this.smoothedTreble ? attack : decay) * (rawTreble - this.smoothedTreble);
+    this.smoothedVolume += (rawVolume > this.smoothedVolume ? attack : decay) * (rawVolume - this.smoothedVolume);
+
+    // Transient Detection (detect sudden energy bursts in bass & mid/treble flux)
+    const instantEnergy = rawBass * 0.65 + rawMid * 0.2 + rawTreble * 0.15;
+    this.energyBaseline += (instantEnergy - this.energyBaseline) * 0.05;
+
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const isSpike = instantEnergy > this.energyBaseline * 1.35 + 0.08;
+    const timeSinceLast = now - this.lastTransientTime;
+
+    if (isSpike && timeSinceLast > 120) {
+      this.transientEnergy = 1.0;
+      this.lastTransientTime = now;
+      this.isCurrentBeat = true;
+    } else {
+      this.transientEnergy *= 0.85;
+      this.isCurrentBeat = false;
+    }
+
+    return {
+      bass: Math.max(0, Math.min(1, this.smoothedBass)),
+      mid: Math.max(0, Math.min(1, this.smoothedMid)),
+      treble: Math.max(0, Math.min(1, this.smoothedTreble)),
+      volume: Math.max(0, Math.min(1, this.smoothedVolume)),
+      rawBass,
+      rawMid,
+      rawTreble,
+      rawVolume,
+      transient: Math.max(0, Math.min(1, this.transientEnergy)),
+      isBeat: this.isCurrentBeat,
+    };
   }
 
+  /**
+   * Returns smoothed normalized bass [0.0, 1.0].
+   */
   public getBass(): number {
     return this.getFrequencyBands().bass;
   }
 
+  /**
+   * Returns smoothed normalized mid [0.0, 1.0].
+   */
   public getMid(): number {
     return this.getFrequencyBands().mid;
   }
 
+  /**
+   * Returns smoothed normalized treble [0.0, 1.0].
+   */
   public getTreble(): number {
     return this.getFrequencyBands().treble;
   }
 
+  /**
+   * Returns smoothed normalized RMS volume [0.0, 1.0].
+   */
   public getVolume(): number {
     return this.getFrequencyBands().volume;
   }
 
+  /**
+   * Returns current transient spike strength [0.0, 1.0].
+   */
+  public getTransient(): number {
+    return this.getFrequencyBands().transient;
+  }
+
+  /**
+   * Returns whether a transient beat was detected in the current frame.
+   */
+  public isTransientDetected(): boolean {
+    return this.getFrequencyBands().isBeat;
+  }
+
+  /**
+   * Returns whether audio capture/synthesis is actively running.
+   */
   public isAudioActive(): boolean {
     return this.isRunning;
   }
 
+  /**
+   * Returns current active audio source type ('synth' | 'mic' | 'none').
+   */
   public getAudioSourceType(): AudioSourceType {
     return this.currentSource;
+  }
+
+  /**
+   * Returns underlying AudioContext.
+   */
+  public getAudioContext(): AudioContext | null {
+    return this.ctx;
+  }
+
+  /**
+   * Returns underlying AnalyserNode.
+   */
+  public getAnalyserNode(): AnalyserNode | null {
+    return this.analyser;
+  }
+
+  /**
+   * Registers a callback listener for audio state transitions.
+   * Returns an unsubscribe function.
+   */
+  public onStateChange(listener: AudioStateListener): () => void {
+    this.listeners.add(listener);
+    // Initial call
+    listener(this.currentSource, this.isRunning, this.isMutedState);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyStateChange(): void {
+    this.listeners.forEach(fn => {
+      try {
+        fn(this.currentSource, this.isRunning, this.isMutedState);
+      } catch (err) {
+        console.warn('Error in audio state listener:', err);
+      }
+    });
   }
 
   /**
@@ -453,6 +738,7 @@ export class AudioManager {
    */
   public dispose(): void {
     this.stop();
+    this.listeners.clear();
     if (this.ctx && this.ctx.state !== 'closed') {
       this.ctx.close().catch(() => {});
     }

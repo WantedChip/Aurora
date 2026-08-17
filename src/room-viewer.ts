@@ -7,6 +7,8 @@
  * deterministic seed randomization with smooth parameter damping,
  * parameter reset, URL state sharing, fullscreen toggling,
  * high-resolution snapshot & video loop export modals,
+ * global audio reactivity pipeline & telemetry visualizer HUD widget,
+ * microphone permission dialogue with privacy assurance,
  * 3000ms HUD auto-dimming on idle, keyboard shortcuts, and clean teardown.
  */
 
@@ -32,6 +34,10 @@ import {
   isRecordingActive,
   negotiateSupportedVideoCodec,
 } from './lib/recorder';
+import {
+  audioManager,
+  type AudioSourceType,
+} from './lib/audio';
 
 export class RoomViewer {
   private container: HTMLElement | null = null;
@@ -58,6 +64,16 @@ export class RoomViewer {
   private activeVideoFPS = 60;
   private isSnapshotInProgress = false;
   private isRecordingInProgress = false;
+
+  // Global Audio Reactivity Pipeline & Telemetry Widget
+  private audioTelemetryWidget: HTMLElement | null = null;
+  private audioCanvas: HTMLCanvasElement | null = null;
+  private audioCanvasCtx: CanvasRenderingContext2D | null = null;
+  private audioRafId = 0;
+  private micPermissionModal: HTMLElement | null = null;
+  private audioUnsubscribe: (() => void) | null = null;
+  private peakHoldBins: Float32Array = new Float32Array(24);
+  private peakDecayRate = 0.015;
 
   private pane: Pane | null = null;
   private activeRoomId: string | null = null;
@@ -119,6 +135,12 @@ export class RoomViewer {
     // Initialize Tweakpane parameter controls
     this.setupControlDock();
 
+    // Initialize Audio Telemetry Widget & State Sync
+    this.setupAudioTelemetry();
+    this.audioUnsubscribe = audioManager.onStateChange((source, isRunning, isMuted) => {
+      this.updateAudioHUDState(source, isRunning, isMuted);
+    });
+
     // Perform hardware capability check and mount room
     try {
       this.gpuCapabilities = await detectGPUCapabilities();
@@ -148,6 +170,7 @@ export class RoomViewer {
         params: { ...this.activeParams },
         prng: this.prng,
         dpr: this.dpr,
+        audio: audioManager,
         onParamChange: (key: string, value: any) => {
           this.activeParams[key] = value;
           this.pane?.refresh();
@@ -189,6 +212,20 @@ export class RoomViewer {
       cancelAnimationFrame(this.lerpAnimFrameId);
       this.lerpAnimFrameId = 0;
     }
+
+    if (this.audioRafId) {
+      cancelAnimationFrame(this.audioRafId);
+      this.audioRafId = 0;
+    }
+
+    if (this.audioUnsubscribe) {
+      this.audioUnsubscribe();
+      this.audioUnsubscribe = null;
+    }
+
+    // Suspend audio context and stop active generation cleanly
+    audioManager.stop();
+    audioManager.suspend();
 
     if (this.toastTimer !== null) {
       clearTimeout(this.toastTimer);
@@ -266,6 +303,18 @@ export class RoomViewer {
       this.videoModal = null;
     }
 
+    if (this.micPermissionModal && this.micPermissionModal.parentNode) {
+      this.micPermissionModal.parentNode.removeChild(this.micPermissionModal);
+      this.micPermissionModal = null;
+    }
+
+    if (this.audioTelemetryWidget && this.audioTelemetryWidget.parentNode) {
+      this.audioTelemetryWidget.parentNode.removeChild(this.audioTelemetryWidget);
+      this.audioTelemetryWidget = null;
+    }
+    this.audioCanvas = null;
+    this.audioCanvasCtx = null;
+
     if (this.toastContainer && this.toastContainer.parentNode) {
       this.toastContainer.parentNode.removeChild(this.toastContainer);
       this.toastContainer = null;
@@ -338,6 +387,20 @@ export class RoomViewer {
    */
   public getGPUCapabilities(): GPUCapabilities | null {
     return this.gpuCapabilities;
+  }
+
+  /**
+   * Returns the Audio Telemetry HUD widget container.
+   */
+  public getAudioTelemetryWidget(): HTMLElement | null {
+    return this.audioTelemetryWidget;
+  }
+
+  /**
+   * Returns the Microphone Permission Modal element.
+   */
+  public getMicPermissionModal(): HTMLElement | null {
+    return this.micPermissionModal;
   }
 
   /**
@@ -495,11 +558,50 @@ export class RoomViewer {
   }
 
   /**
+   * Cycles audio source (Synth -> Mic -> Muted -> Synth).
+   */
+  public async toggleAudioSource(): Promise<void> {
+    const current = audioManager.getAudioSourceType();
+    const isMuted = audioManager.isMuted();
+
+    if (isMuted) {
+      audioManager.setMuted(false);
+      this.showToast('Audio Unmuted');
+      this.wakeHUD();
+      return;
+    }
+
+    if (current === 'synth') {
+      this.openMicPermissionModal();
+    } else if (current === 'mic') {
+      audioManager.setMuted(true);
+      this.showToast('Audio Muted');
+    } else {
+      await audioManager.startSynth();
+      this.showToast('Ambient Synth Active');
+    }
+    this.wakeHUD();
+  }
+
+  /**
+   * Toggles audio mute state.
+   */
+  public toggleAudioMute(): boolean {
+    const isMuted = audioManager.toggleMute();
+    this.showToast(isMuted ? 'Audio Muted' : 'Audio Active');
+    this.wakeHUD();
+    return isMuted;
+  }
+
+  /**
    * Opens the High-Resolution Snapshot Export modal dialogue.
    */
   public openSnapshotModal(): void {
     if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
       this.closeVideoModal();
+    }
+    if (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden')) {
+      this.closeMicPermissionModal();
     }
 
     if (!this.snapshotModal) {
@@ -532,6 +634,9 @@ export class RoomViewer {
     if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
       this.closeSnapshotModal();
     }
+    if (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden')) {
+      this.closeMicPermissionModal();
+    }
 
     if (!this.videoModal) {
       this.renderVideoModal();
@@ -557,6 +662,39 @@ export class RoomViewer {
     setTimeout(() => {
       this.videoModal?.classList.add('hidden');
       this.videoModal?.classList.remove('closing');
+    }, 180);
+  }
+
+  /**
+   * Opens the Microphone Permission Dialogue Modal with privacy explainer.
+   */
+  public openMicPermissionModal(): void {
+    if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+      this.closeSnapshotModal();
+    }
+    if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+      this.closeVideoModal();
+    }
+
+    if (!this.micPermissionModal) {
+      this.renderMicPermissionModal();
+    }
+
+    this.micPermissionModal?.classList.remove('hidden');
+    this.micPermissionModal?.classList.remove('closing');
+    this.wakeHUD();
+  }
+
+  /**
+   * Closes the Microphone Permission Modal.
+   */
+  public closeMicPermissionModal(): void {
+    if (!this.micPermissionModal || this.micPermissionModal.classList.contains('hidden')) return;
+
+    this.micPermissionModal.classList.add('closing');
+    setTimeout(() => {
+      this.micPermissionModal?.classList.add('hidden');
+      this.micPermissionModal?.classList.remove('closing');
     }, 180);
   }
 
@@ -717,6 +855,10 @@ export class RoomViewer {
 
       <div class="room-hud-right">
         <div class="room-hud-actions">
+          <button type="button" id="room-hud-btn-audio" class="room-hud-action-btn state-synth" aria-label="Toggle Audio Reactivity & Source" title="Audio Reactivity (A)">
+            <span aria-hidden="true" class="icon" id="room-hud-audio-icon">🎵</span> <span id="room-hud-audio-label">Synth</span>
+          </button>
+
           <button type="button" id="room-hud-btn-seed" class="room-hud-seed-btn" aria-label="Randomize Seed & Parameters" title="Randomize Seed (R)">
             <span aria-hidden="true">🎲</span> <span class="seed-value">${this.activeParams.seed}</span>
           </button>
@@ -803,6 +945,249 @@ export class RoomViewer {
     this.mobileToggleBtn = mobileToggleBtn;
 
     this.setupHUDButtonListeners();
+  }
+
+  /**
+   * Initializes the sleek miniature Audio HUD Telemetry widget and visualizer loop.
+   */
+  private setupAudioTelemetry(): void {
+    if (!this.container) return;
+
+    const audioHud = document.createElement('aside');
+    audioHud.className = 'room-audio-hud';
+    audioHud.id = 'room-audio-hud';
+    audioHud.setAttribute('aria-label', 'Audio Reactivity Telemetry HUD');
+
+    audioHud.innerHTML = `
+      <div class="audio-hud-header">
+        <div class="audio-hud-status-group">
+          <button type="button" class="audio-hud-source-pill source-synth" id="audio-hud-btn-source" title="Click to cycle source (Synth / Mic / Mute)">
+            <span class="source-icon" id="audio-hud-source-icon">🎵</span>
+            <span class="source-text" id="audio-hud-source-text">SYNTH</span>
+          </button>
+          <span class="audio-hud-beat-pill" id="audio-hud-beat-pill" title="Transient Beat Detection">✦ BEAT</span>
+        </div>
+        <div class="audio-hud-controls-group">
+          <button type="button" class="audio-hud-icon-btn" id="audio-hud-btn-mic" title="Connect Microphone (M)" aria-label="Microphone Live Stream">
+            🎙
+          </button>
+          <button type="button" class="audio-hud-icon-btn" id="audio-hud-btn-mute" title="Toggle Mute (U)" aria-label="Toggle Mute">
+            🔊
+          </button>
+          <button type="button" class="audio-hud-icon-btn" id="audio-hud-btn-collapse" title="Collapse / Expand Visualizer" aria-label="Toggle Audio HUD Body">
+            ▾
+          </button>
+        </div>
+      </div>
+
+      <div class="audio-hud-body" id="audio-hud-body">
+        <div class="audio-hud-viz-container">
+          <canvas class="audio-hud-canvas" id="audio-hud-canvas" width="220" height="32" aria-label="Real-time FFT Spectrum"></canvas>
+        </div>
+        <div class="audio-hud-telemetry-row">
+          <span class="audio-hud-stat">BASS <b id="audio-stat-bass">0.00</b></span>
+          <span class="audio-hud-stat">MID <b id="audio-stat-mid">0.00</b></span>
+          <span class="audio-hud-stat">TREB <b id="audio-stat-treb">0.00</b></span>
+          <span class="audio-hud-stat">RMS <b id="audio-stat-vol">0.00</b></span>
+        </div>
+      </div>
+    `;
+
+    this.container.appendChild(audioHud);
+    this.audioTelemetryWidget = audioHud;
+
+    const canvas = audioHud.querySelector<HTMLCanvasElement>('#audio-hud-canvas');
+    if (canvas) {
+      this.audioCanvas = canvas;
+      this.audioCanvasCtx = canvas.getContext('2d');
+    }
+
+    const signal = this.abortController?.signal;
+
+    audioHud.querySelector('#audio-hud-btn-source')?.addEventListener('click', () => {
+      this.toggleAudioSource();
+    }, { signal });
+
+    audioHud.querySelector('#audio-hud-btn-mic')?.addEventListener('click', () => {
+      this.openMicPermissionModal();
+    }, { signal });
+
+    audioHud.querySelector('#audio-hud-btn-mute')?.addEventListener('click', () => {
+      this.toggleAudioMute();
+    }, { signal });
+
+    audioHud.querySelector('#audio-hud-btn-collapse')?.addEventListener('click', () => {
+      audioHud.classList.toggle('collapsed');
+      const collapseBtn = audioHud.querySelector('#audio-hud-btn-collapse');
+      if (collapseBtn) {
+        collapseBtn.textContent = audioHud.classList.contains('collapsed') ? '▸' : '▾';
+      }
+      this.wakeHUD();
+    }, { signal });
+
+    // Prevent auto-dimming during interaction with audio HUD
+    audioHud.addEventListener('pointerenter', () => { this.isInteractingWithControls = true; this.wakeHUD(); }, { signal });
+    audioHud.addEventListener('pointerleave', () => { this.isInteractingWithControls = false; }, { signal });
+
+    // Start Audio Visualizer Loop
+    this.startAudioVisualizerLoop();
+  }
+
+  /**
+   * Starts the 60 FPS real-time audio FFT visualizer and telemetry updater loop.
+   */
+  private startAudioVisualizerLoop(): void {
+    const numBins = 24;
+    if (this.peakHoldBins.length !== numBins) {
+      this.peakHoldBins = new Float32Array(numBins);
+    }
+
+    const bassLabel = this.audioTelemetryWidget?.querySelector<HTMLElement>('#audio-stat-bass');
+    const midLabel = this.audioTelemetryWidget?.querySelector<HTMLElement>('#audio-stat-mid');
+    const trebLabel = this.audioTelemetryWidget?.querySelector<HTMLElement>('#audio-stat-treb');
+    const volLabel = this.audioTelemetryWidget?.querySelector<HTMLElement>('#audio-stat-vol');
+    const beatPill = this.audioTelemetryWidget?.querySelector<HTMLElement>('#audio-hud-beat-pill');
+
+    const render = () => {
+      if (this.isDestroyed) return;
+
+      const bands = audioManager.getFrequencyBands();
+      const bins = audioManager.getSpectrumBins(numBins);
+
+      // Update text telemetry
+      if (bassLabel) bassLabel.textContent = bands.bass.toFixed(2);
+      if (midLabel) midLabel.textContent = bands.mid.toFixed(2);
+      if (trebLabel) trebLabel.textContent = bands.treble.toFixed(2);
+      if (volLabel) volLabel.textContent = bands.volume.toFixed(2);
+
+      // Update transient beat indicator
+      if (beatPill) {
+        if (bands.isBeat || bands.transient > 0.35) {
+          beatPill.classList.add('active');
+        } else {
+          beatPill.classList.remove('active');
+        }
+      }
+
+      // Draw FFT Bars to Canvas
+      if (this.audioCanvas && this.audioCanvasCtx && !this.audioTelemetryWidget?.classList.contains('collapsed')) {
+        const ctx = this.audioCanvasCtx;
+        const w = this.audioCanvas.width;
+        const h = this.audioCanvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const gap = 2;
+        const barWidth = Math.max(2, Math.floor((w - (numBins - 1) * gap) / numBins));
+
+        for (let i = 0; i < numBins; i++) {
+          const val = Math.max(0, Math.min(1, bins[i]));
+          const barHeight = Math.max(2, Math.round(val * (h - 4)));
+          const x = i * (barWidth + gap);
+          const y = h - barHeight;
+
+          // Peak hold logic
+          if (val >= this.peakHoldBins[i]) {
+            this.peakHoldBins[i] = val;
+          } else {
+            this.peakHoldBins[i] = Math.max(0, this.peakHoldBins[i] - this.peakDecayRate);
+          }
+          const peakY = Math.max(0, Math.round(h - this.peakHoldBins[i] * (h - 4) - 2));
+
+          // Color gradient across frequencies: Cyan (Bass) -> Mint (Mid) -> Amber (High Mid) -> Crimson (Treble)
+          const ratio = i / (numBins - 1);
+          let barColor = '#00F0FF';
+          if (ratio > 0.7) {
+            barColor = '#FF3366'; // Treble
+          } else if (ratio > 0.45) {
+            barColor = '#FFB800'; // Mid-high
+          } else if (ratio > 0.2) {
+            barColor = '#00FF9D'; // Mid
+          }
+
+          // Draw active spectrum bar
+          ctx.fillStyle = barColor;
+          ctx.fillRect(x, y, barWidth, barHeight);
+
+          // Draw peak hold marker
+          if (this.peakHoldBins[i] > 0.05) {
+            ctx.fillStyle = '#F4F6FB';
+            ctx.fillRect(x, peakY, barWidth, 1.5);
+          }
+        }
+      }
+
+      this.audioRafId = requestAnimationFrame(render);
+    };
+
+    this.audioRafId = requestAnimationFrame(render);
+  }
+
+  /**
+   * Synchronizes Top HUD and Audio HUD UI indicators with current audio state.
+   */
+  private updateAudioHUDState(source: AudioSourceType, isRunning: boolean, isMuted: boolean): void {
+    if (this.isDestroyed) return;
+
+    // Update Top HUD Audio button
+    const hudAudioBtn = this.hudBar?.querySelector<HTMLButtonElement>('#room-hud-btn-audio');
+    const hudAudioIcon = this.hudBar?.querySelector<HTMLElement>('#room-hud-audio-icon');
+    const hudAudioLabel = this.hudBar?.querySelector<HTMLElement>('#room-hud-audio-label');
+
+    if (hudAudioBtn) {
+      hudAudioBtn.classList.remove('state-synth', 'state-mic', 'state-muted', 'state-none');
+      if (isMuted) {
+        hudAudioBtn.classList.add('state-muted');
+        if (hudAudioIcon) hudAudioIcon.textContent = '🔇';
+        if (hudAudioLabel) hudAudioLabel.textContent = 'Muted';
+      } else if (source === 'mic' && isRunning) {
+        hudAudioBtn.classList.add('state-mic');
+        if (hudAudioIcon) hudAudioIcon.textContent = '🎙';
+        if (hudAudioLabel) hudAudioLabel.textContent = 'Mic Live';
+      } else if (source === 'synth' && isRunning) {
+        hudAudioBtn.classList.add('state-synth');
+        if (hudAudioIcon) hudAudioIcon.textContent = '🎵';
+        if (hudAudioLabel) hudAudioLabel.textContent = 'Synth';
+      } else {
+        hudAudioBtn.classList.add('state-none');
+        if (hudAudioIcon) hudAudioIcon.textContent = '⏸';
+        if (hudAudioLabel) hudAudioLabel.textContent = 'Audio Off';
+      }
+    }
+
+    // Update Audio HUD widget
+    if (this.audioTelemetryWidget) {
+      const sourceBtn = this.audioTelemetryWidget.querySelector<HTMLElement>('#audio-hud-btn-source');
+      const sourceIcon = this.audioTelemetryWidget.querySelector<HTMLElement>('#audio-hud-source-icon');
+      const sourceText = this.audioTelemetryWidget.querySelector<HTMLElement>('#audio-hud-source-text');
+      const muteBtn = this.audioTelemetryWidget.querySelector<HTMLElement>('#audio-hud-btn-mute');
+
+      if (sourceBtn) {
+        sourceBtn.classList.remove('source-synth', 'source-mic', 'source-muted', 'source-none');
+        if (isMuted) {
+          sourceBtn.classList.add('source-muted');
+          if (sourceIcon) sourceIcon.textContent = '🔇';
+          if (sourceText) sourceText.textContent = 'MUTED';
+        } else if (source === 'mic' && isRunning) {
+          sourceBtn.classList.add('source-mic');
+          if (sourceIcon) sourceIcon.textContent = '🎙';
+          if (sourceText) sourceText.textContent = 'MIC LIVE';
+        } else if (source === 'synth' && isRunning) {
+          sourceBtn.classList.add('source-synth');
+          if (sourceIcon) sourceIcon.textContent = '🎵';
+          if (sourceText) sourceText.textContent = 'SYNTH';
+        } else {
+          sourceBtn.classList.add('source-none');
+          if (sourceIcon) sourceIcon.textContent = '⏸';
+          if (sourceText) sourceText.textContent = 'IDLE';
+        }
+      }
+
+      if (muteBtn) {
+        muteBtn.textContent = isMuted ? '🔇' : '🔊';
+        muteBtn.classList.toggle('muted', isMuted);
+      }
+    }
   }
 
   /**
@@ -967,6 +1352,12 @@ export class RoomViewer {
     const backBtn = this.hudBar.querySelector('#room-hud-btn-back');
     backBtn?.addEventListener('click', () => {
       router.navigateToGallery();
+    }, { signal });
+
+    // Audio Reactivity Toggle
+    const audioBtn = this.hudBar.querySelector('#room-hud-btn-audio');
+    audioBtn?.addEventListener('click', () => {
+      this.toggleAudioSource();
     }, { signal });
 
     // Randomize Seed
@@ -1391,6 +1782,116 @@ export class RoomViewer {
   }
 
   /**
+   * Renders the Microphone Permission & Local Spectral Analysis Modal.
+   */
+  private renderMicPermissionModal(): void {
+    if (!this.container) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'room-modal-overlay hidden';
+    overlay.id = 'room-mic-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-label', 'Microphone Access & Spectral Analysis');
+
+    overlay.innerHTML = `
+      <div class="room-modal-card room-mic-modal-card">
+        <div class="room-modal-header">
+          <div class="room-modal-title-group">
+            <h2 class="room-modal-title">Live Audio Stream</h2>
+            <span class="room-modal-badge badge-privacy">LOCAL FFT ONLY</span>
+          </div>
+          <button type="button" class="room-modal-close" id="mic-modal-btn-close" aria-label="Close modal">&times;</button>
+        </div>
+
+        <div class="room-modal-body">
+          <div class="room-mic-explainer">
+            <p class="room-mic-desc">
+              Aurora transforms acoustic vibrations into algorithmic kinetic motion using high-precision Web Audio API Fast Fourier Transform (FFT) spectral decomposition.
+            </p>
+            <div class="room-mic-privacy-box">
+              <div class="privacy-header">
+                <span class="privacy-icon" aria-hidden="true">🛡️</span>
+                <span class="privacy-title">Privacy & Local Processing Guarantee</span>
+              </div>
+              <ul class="privacy-list">
+                <li><strong>Zero Recording:</strong> Audio signals are never recorded or written to disk.</li>
+                <li><strong>Zero Transmission:</strong> Audio data never leaves your device or browser memory.</li>
+                <li><strong>Instant Disposal:</strong> Real-time frequency bins are computed per-frame and immediately overwritten.</li>
+              </ul>
+            </div>
+            <div class="room-mic-bands-preview">
+              <div class="mic-band-item">
+                <span class="band-tag">BASS [20–250Hz]</span>
+                <span class="band-desc">Shockwaves, Pulsation & Scale</span>
+              </div>
+              <div class="mic-band-item">
+                <span class="band-tag">MID [250–2500Hz]</span>
+                <span class="band-desc">Rotation, Flow & Velocity</span>
+              </div>
+              <div class="mic-band-item">
+                <span class="band-tag">TREBLE [2.5–12kHz]</span>
+                <span class="band-desc">Dispersion, Shimmer & Transients</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="room-modal-actions">
+          <button type="button" class="room-btn-secondary" id="mic-modal-btn-synth">
+            Use Ambient Synth
+          </button>
+          <button type="button" class="room-btn-primary" id="mic-modal-btn-allow">
+            <span class="btn-text">🎙 Connect Microphone</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.container.appendChild(overlay);
+    this.micPermissionModal = overlay;
+
+    const signal = this.abortController?.signal;
+
+    overlay.querySelector('#mic-modal-btn-close')?.addEventListener('click', () => this.closeMicPermissionModal(), { signal });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeMicPermissionModal();
+    }, { signal });
+
+    // "Use Ambient Synth" button
+    overlay.querySelector('#mic-modal-btn-synth')?.addEventListener('click', async () => {
+      await audioManager.startSynth();
+      this.showToast('Ambient Synth Active');
+      this.closeMicPermissionModal();
+    }, { signal });
+
+    // "Connect Microphone" button
+    overlay.querySelector('#mic-modal-btn-allow')?.addEventListener('click', async () => {
+      const allowBtn = overlay.querySelector<HTMLButtonElement>('#mic-modal-btn-allow');
+      const btnText = allowBtn?.querySelector<HTMLElement>('.btn-text');
+      if (btnText) btnText.textContent = 'Requesting Stream...';
+      if (allowBtn) allowBtn.disabled = true;
+
+      try {
+        const success = await audioManager.connectMicrophone();
+        if (success) {
+          this.showToast('Microphone Connected (Live FFT Active)');
+          this.closeMicPermissionModal();
+        } else {
+          this.showToast('Microphone access denied. Falling back to synth.');
+          this.closeMicPermissionModal();
+        }
+      } catch (err) {
+        console.warn('Microphone request error:', err);
+        this.showToast('Microphone error. Using ambient synth.');
+        this.closeMicPermissionModal();
+      } finally {
+        if (allowBtn) allowBtn.disabled = false;
+        if (btnText) btnText.textContent = '🎙 Connect Microphone';
+      }
+    }, { signal });
+  }
+
+  /**
    * Sets up 3000ms idle timer for auto-dimming the HUD and controls.
    */
   private setupAutoDimming(): void {
@@ -1440,7 +1941,8 @@ export class RoomViewer {
         this.isInteractingWithControls ||
         this.isMobileDrawerOpen ||
         (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) ||
-        (this.videoModal && !this.videoModal.classList.contains('hidden'))
+        (this.videoModal && !this.videoModal.classList.contains('hidden')) ||
+        (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden'))
       ) {
         return;
       }
@@ -1478,6 +1980,8 @@ export class RoomViewer {
    * - R: Randomize Seed
    * - S: Open High-Res Snapshot Modal
    * - L: Open Video Loop Export Modal
+   * - A: Toggle Audio Source / Open Audio Modal
+   * - M: Toggle Audio Mute
    * - C: Copy Share Link
    * - F: Toggle Fullscreen
    * - Esc: Close Modals / Close Drawer / Return to Gallery
@@ -1501,6 +2005,12 @@ export class RoomViewer {
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         this.randomizeSeed();
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        this.toggleAudioSource();
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        this.toggleAudioMute();
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
         if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
@@ -1526,7 +2036,9 @@ export class RoomViewer {
         this.toggleHUDVisibility();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+        if (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden')) {
+          this.closeMicPermissionModal();
+        } else if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
           this.closeSnapshotModal();
         } else if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
           this.closeVideoModal();

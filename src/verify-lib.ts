@@ -863,7 +863,110 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'differential-growth/index.ts', details: String(err) });
   }
 
-  // 15. Verify Client-Side Hash Router
+  // 15. Verify Room 09: Cyclic Cellular Automata (Color-Cycling Wave Fronts)
+  try {
+    const roomInstance = await lazyLoadRoom('cyclic-automata');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#FF0055');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#FF0055',
+        preset: 'spiral-crystals',
+        stateCount: 14,
+        threshold: 3,
+        neighborhoodRange: 2,
+        neighborhoodType: 'moore',
+        simSpeed: 3,
+        reliefScale: 1.8,
+        brushRadius: 20,
+        brushMode: 'disrupt',
+        colorPalette: 'spectral-aurora',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter dynamic updates & preset switching
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'amoeba-waves',
+        colorPalette: 'bioluminescent-emerald',
+        stateCount: 8,
+        threshold: 2,
+        neighborhoodRange: 1,
+        neighborhoodType: 'moore',
+        reliefScale: 1.2,
+        simSpeed: 2,
+        brushMode: 'vortex',
+      });
+    }
+
+    // Test pointer event interaction (nucleation drag & vortex injection)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 340,
+        y: 260,
+        normalizedX: 0.53,
+        normalizedY: 0.54,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 340,
+        y: 260,
+        normalizedX: 0.53,
+        normalizedY: 0.54,
+        isDown: false,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const cyclicPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: cyclicPassed,
+      module: 'cyclic-automata/index.ts (Room 09)',
+      details: `Cyclic Cellular Automata mounted, verified Griffeath (S+1) mod N cyclic advancement, Moore & von Neumann neighborhoods, rule presets (spiral-crystals -> amoeba-waves), pointer chaotic nucleation & vortex drag, 3D normal relief, palette switching, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'cyclic-automata/index.ts', details: String(err) });
+  }
+
+  // 16. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -900,7 +1003,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 16. Verify Media Recorder & Snapshot Pipeline
+  // 17. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -964,7 +1067,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 17. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 18. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

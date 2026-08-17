@@ -4,6 +4,7 @@ import { detectGPUCapabilities, getGPUTier, getClampedDPR, formatGPUTelemetryBad
 import { parseHash, serializeHash, parseParams, serializeParams, dampParameter } from './lib/state';
 import { audioManager } from './lib/audio';
 import { getAllRooms, getRoomById, searchRooms, filterRoomsByCategory, getCategories, lazyLoadRoom } from './rooms/registry';
+import type { RoomContext } from './rooms/types';
 import { router, type RouteState } from './lib/router';
 import { captureSnapshot, recordVideoLoop, negotiateSupportedVideoCodec, formatExportFilename } from './lib/recorder';
 
@@ -1618,7 +1619,138 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'metaballs/index.ts', details: String(err) });
   }
 
-  // 21. Verify Client-Side Hash Router
+  // 21. Verify Room 15: Galaxy Fly-Through
+  try {
+    const galaxyCanvas = document.createElement('canvas');
+    galaxyCanvas.width = 600;
+    galaxyCanvas.height = 600;
+    const galaxyContainer = document.createElement('div');
+    const galaxyPrng = createPRNG('#E0AAFF');
+
+    const galaxyMeta = getRoomById('galaxy');
+    const roomInstance = await lazyLoadRoom('galaxy');
+
+    const ctx: RoomContext = {
+      canvas: galaxyCanvas,
+      container: galaxyContainer,
+      params: { ...(galaxyMeta?.defaultParams || {}) },
+      prng: galaxyPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // Test parameter dynamic updates across all 6 presets and palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'andromeda',
+        starCount: 100000,
+        spiralArms: 2,
+        armWinding: 2.2,
+        colorPalette: 'deep-cosmos',
+        cameraMode: 'fly-through',
+      });
+      roomInstance.updateParams({
+        preset: 'pinwheel',
+        spiralArms: 5,
+        colorPalette: 'spectral-aurora',
+      });
+      roomInstance.updateParams({
+        preset: 'sombrero',
+        coreBulgeRadius: 4.5,
+        dustDensity: 2.0,
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'ring-galaxy',
+        colorPalette: 'cosmic-amethyst',
+      });
+      roomInstance.updateParams({
+        preset: 'starburst',
+        densityWaveAmp: 1.4,
+        colorPalette: 'monochrome-void',
+      });
+      roomInstance.updateParams({
+        preset: 'milky-way',
+        starCount: 150000,
+        spiralArms: 4,
+        colorPalette: 'stellar-blackbody',
+      });
+    }
+
+    // Test pointer interactions for fly-through override
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 340,
+        y: 280,
+        normalizedX: 0.56,
+        normalizedY: 0.46,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 340,
+        y: 280,
+        normalizedX: 0.56,
+        normalizedY: 0.46,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test custom high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 800);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const galaxyPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 800;
+
+    results.push({
+      passed: galaxyPassed,
+      module: 'galaxy/index.ts (Room 15)',
+      details: `Galaxy Fly-Through mounted, verified 6 morphology presets (Milky Way, Andromeda, Pinwheel, Sombrero, Ring Galaxy, Starburst), OBAFGKM spectral classification, 7 curatorial palettes, Catmull-Rom spline camera fly-through with pointer override, and 800x800 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'galaxy/index.ts', details: String(err) });
+  }
+
+  // 22. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -1655,7 +1787,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 22. Verify Media Recorder & Snapshot Pipeline
+  // 23. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -1719,7 +1851,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 23. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 24. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

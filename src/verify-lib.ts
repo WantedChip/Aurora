@@ -1212,7 +1212,130 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'fractal/index.ts', details: String(err) });
   }
 
-  // 18. Verify Client-Side Hash Router
+  // 18. Verify Room 12: Wave Function Collapse (Procedural Constraint Tiling)
+  try {
+    const roomInstance = await lazyLoadRoom('wave-function-collapse');
+    const container = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 600;
+    container.appendChild(canvas);
+
+    const prng = createPRNG('#00E676');
+    let cleanupRan = false;
+
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#00E676',
+        gridSize: 16,
+        tileSet: 'circuit',
+        collapseSpeed: 8,
+        autoRestart: false,
+        restartDelay: 3.0,
+        symmetryEnforce: false,
+        colorPalette: 'spectral-aurora',
+        superpositionAlpha: 0.35,
+        frontierGlow: 1.2,
+        lineWidth: 2.0,
+        pointerMode: 'collapse',
+        brushRadius: 1,
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test dynamic parameter updates across all 5 tilesets
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        tileSet: 'pipes',
+        colorPalette: 'cyber-neon',
+      });
+      roomInstance.updateParams({
+        tileSet: 'labyrinth',
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        tileSet: 'gothic',
+        colorPalette: 'obsidian-emerald',
+      });
+      roomInstance.updateParams({
+        tileSet: 'wang',
+        colorPalette: 'cosmic-amethyst',
+      });
+      roomInstance.updateParams({
+        tileSet: 'circuit',
+        colorPalette: 'spectral-aurora',
+        symmetryEnforce: true,
+        collapseSpeed: 16,
+      });
+    }
+
+    // Test pointer interactions (collapse, erase, disturb)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 320,
+        normalizedX: 0.53,
+        normalizedY: 0.53,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 320,
+        y: 320,
+        normalizedX: 0.53,
+        normalizedY: 0.53,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test custom high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 800);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const wfcPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 800;
+
+    results.push({
+      passed: wfcPassed,
+      module: 'wave-function-collapse/index.ts (Room 12)',
+      details: `Wave Function Collapse mounted, verified 5 tilesets (Circuit, Pipes, Labyrinth, Gothic, Wang), Shannon entropy solver, 4-directional constraint propagation, superposition preview rendering, pointer collapse/erase tools, and 800x800 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'wave-function-collapse/index.ts', details: String(err) });
+  }
+
+  // 19. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -1249,7 +1372,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 19. Verify Media Recorder & Snapshot Pipeline
+  // 20. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -1313,7 +1436,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 20. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 21. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

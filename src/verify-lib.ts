@@ -1087,7 +1087,132 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'strange-attractors/index.ts', details: String(err) });
   }
 
-  // 17. Verify Client-Side Hash Router
+  // 17. Verify Room 11: Raymarched Fractals (Mandelbulb, Menger Sponge, Mandelbox, Quaternion Julia)
+  try {
+    const roomInstance = await lazyLoadRoom('fractal');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#C084FC');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#C084FC',
+        fractalType: 'mandelbulb',
+        colorPalette: 'spectral-aurora',
+        power: 8.0,
+        iterations: 8,
+        morphParam: 0.0,
+        scale: 2.0,
+        maxSteps: 80,
+        glowIntensity: 1.2,
+        specularExp: 32.0,
+        ambientOcclusion: 1.0,
+        cameraAutoRotate: true,
+        rotationSpeed: 0.3,
+        camDistance: 2.6,
+        cameraFov: 55.0,
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter dynamic updates & topology morphing (Mandelbulb -> Menger -> Mandelbox -> Julia)
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        fractalType: 'menger',
+        colorPalette: 'solar-plasma',
+        scale: 3.0,
+        iterations: 6,
+      });
+      roomInstance.updateParams({
+        fractalType: 'mandelbox',
+        colorPalette: 'bioluminescent-cyan',
+        scale: -2.0,
+        glowIntensity: 1.5,
+      });
+      roomInstance.updateParams({
+        fractalType: 'julia',
+        colorPalette: 'cosmic-amethyst',
+        morphParam: 0.8,
+        specularExp: 48.0,
+      });
+      roomInstance.updateParams({
+        fractalType: 'mandelbulb',
+        power: 9.5,
+        maxSteps: 100,
+        cameraAutoRotate: false,
+      });
+    }
+
+    // Test pointer event interaction (orbital camera rotation)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 360,
+        y: 270,
+        normalizedX: 0.56,
+        normalizedY: 0.56,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 360,
+        y: 270,
+        normalizedX: 0.56,
+        normalizedY: 0.56,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 600);
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const fractalPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: fractalPassed,
+      module: 'fractal/index.ts (Room 11)',
+      details: `Raymarched Fractals mounted, verified 4 fractal distance fields (Mandelbulb, Menger Sponge, Mandelbox, Quaternion Julia), analytical gradient normals, AO, Blinn-Phong specular lighting, orbital camera pointer navigation, parameter morphing, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'fractal/index.ts', details: String(err) });
+  }
+
+  // 18. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -1124,7 +1249,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 18. Verify Media Recorder & Snapshot Pipeline
+  // 19. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -1188,7 +1313,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 19. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 20. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

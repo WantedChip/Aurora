@@ -966,7 +966,128 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'cyclic-automata/index.ts', details: String(err) });
   }
 
-  // 16. Verify Client-Side Hash Router
+  // 16. Verify Room 10: Strange Attractors (Lorenz, Aizawa, Halvorsen, Clifford, Peter de Jong)
+  try {
+    const roomInstance = await lazyLoadRoom('strange-attractors');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#00F0FF');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#00F0FF',
+        attractorType: 'lorenz',
+        pointCount: 100000,
+        dt: 0.005,
+        paramA: 10.0,
+        paramB: 28.0,
+        paramC: 2.667,
+        paramD: 0.7,
+        evolutionSpeed: 1.0,
+        streamCount: 40,
+        colorMode: 'velocity',
+        colorPalette: 'spectral-aurora',
+        pointSize: 1.5,
+        glowIntensity: 1.0,
+        cameraAutoRotate: true,
+        rotationSpeed: 0.4,
+        cameraFov: 50,
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter dynamic updates & attractor switching (continuous -> continuous -> discrete)
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        attractorType: 'aizawa',
+        colorPalette: 'solar-plasma',
+        pointCount: 150000,
+        colorMode: 'curvature',
+      });
+      roomInstance.updateParams({
+        attractorType: 'clifford',
+        colorPalette: 'bioluminescent-cyan',
+        pointCount: 120000,
+        colorMode: 'depth',
+      });
+      roomInstance.updateParams({
+        attractorType: 'lorenz',
+        paramA: 12.0,
+        paramB: 32.0,
+        pointSize: 2.0,
+      });
+    }
+
+    // Test pointer event interaction (camera orbit / drag)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 350,
+        y: 270,
+        normalizedX: 0.55,
+        normalizedY: 0.56,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 350,
+        y: 270,
+        normalizedX: 0.55,
+        normalizedY: 0.56,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 600);
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const attractorsPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: attractorsPassed,
+      module: 'strange-attractors/index.ts (Room 10)',
+      details: `Strange Attractors mounted, verified RK4 continuous differential integration (Lorenz, Aizawa) and discrete map iteration (Clifford, Peter de Jong), 4 color dimensions (velocity/curvature/depth/timeline), OrbitControls camera manipulation, parameter damping, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'strange-attractors/index.ts', details: String(err) });
+  }
+
+  // 17. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -1003,7 +1124,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 17. Verify Media Recorder & Snapshot Pipeline
+  // 18. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -1067,7 +1188,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 18. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 19. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

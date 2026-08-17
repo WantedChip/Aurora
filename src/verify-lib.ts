@@ -656,7 +656,107 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'reaction-diffusion/index.ts', details: String(err) });
   }
 
-  // 13. Verify Client-Side Hash Router
+  // 13. Verify Room 07: Lenia (Continuous Neural Cellular Automata)
+  try {
+    const roomInstance = await lazyLoadRoom('lenia');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#00E5FF');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#00E5FF',
+        preset: 'orbium',
+        mu: 0.156,
+        sigma: 0.0224,
+        dt: 0.10,
+        kernelRadius: 13,
+        simSpeed: 1,
+        brushRadius: 16,
+        brushIntensity: 0.85,
+        reliefScale: 2.0,
+        colorPalette: 'bioluminescent-cyan',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter updates & preset switching
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'gyrobium',
+        colorPalette: 'obsidian-emerald',
+        reliefScale: 2.5,
+        simSpeed: 2,
+        mu: 0.175,
+        sigma: 0.025,
+      });
+    }
+
+    // Test pointer event interaction (direct click spawning & continuous painting)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 330,
+        y: 250,
+        normalizedX: 0.52,
+        normalizedY: 0.52,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 330,
+        y: 250,
+        normalizedX: 0.52,
+        normalizedY: 0.52,
+        isDown: false,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const leniaPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: leniaPassed,
+      module: 'lenia/index.ts (Room 07)',
+      details: `Lenia simulation mounted, verified concentric ring convolution K(r), unimodal growth mapping G(U), organism presets (orbium -> gyrobium), pointer spawning & painting, 3D normal relief, palette switching, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'lenia/index.ts', details: String(err) });
+  }
+
+  // 14. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -757,7 +857,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 15. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 16. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

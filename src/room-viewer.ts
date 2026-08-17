@@ -58,6 +58,7 @@ export class RoomViewer {
   // Export Modals
   private snapshotModal: HTMLElement | null = null;
   private videoModal: HTMLElement | null = null;
+  private modalTriggerElement: HTMLElement | null = null;
   private activeSnapshotScale: 1 | 2 | 4 = 2;
   private activeSnapshotFormat: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png';
   private activeVideoDuration = 5;
@@ -596,7 +597,7 @@ export class RoomViewer {
   /**
    * Opens the High-Resolution Snapshot Export modal dialogue.
    */
-  public openSnapshotModal(): void {
+  public openSnapshotModal(triggerEl?: HTMLElement | null): void {
     if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
       this.closeVideoModal();
     }
@@ -604,14 +605,20 @@ export class RoomViewer {
       this.closeMicPermissionModal();
     }
 
+    this.modalTriggerElement = triggerEl || (document.activeElement as HTMLElement | null);
+
     if (!this.snapshotModal) {
       this.renderSnapshotModal();
     }
 
     this.snapshotModal?.classList.remove('hidden');
     this.snapshotModal?.classList.remove('closing');
+    this.snapshotModal?.setAttribute('aria-hidden', 'false');
     this.updateSnapshotInfoStrip();
     this.wakeHUD();
+
+    const closeBtn = this.snapshotModal?.querySelector<HTMLButtonElement>('#snap-modal-btn-close');
+    closeBtn?.focus();
   }
 
   /**
@@ -621,16 +628,22 @@ export class RoomViewer {
     if (!this.snapshotModal || this.snapshotModal.classList.contains('hidden')) return;
 
     this.snapshotModal.classList.add('closing');
+    this.snapshotModal.setAttribute('aria-hidden', 'true');
     setTimeout(() => {
       this.snapshotModal?.classList.add('hidden');
       this.snapshotModal?.classList.remove('closing');
     }, 180);
+
+    if (this.modalTriggerElement && typeof this.modalTriggerElement.focus === 'function') {
+      this.modalTriggerElement.focus();
+      this.modalTriggerElement = null;
+    }
   }
 
   /**
    * Opens the Video Loop Export modal dialogue.
    */
-  public openVideoModal(): void {
+  public openVideoModal(triggerEl?: HTMLElement | null): void {
     if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
       this.closeSnapshotModal();
     }
@@ -638,13 +651,19 @@ export class RoomViewer {
       this.closeMicPermissionModal();
     }
 
+    this.modalTriggerElement = triggerEl || (document.activeElement as HTMLElement | null);
+
     if (!this.videoModal) {
       this.renderVideoModal();
     }
 
     this.videoModal?.classList.remove('hidden');
     this.videoModal?.classList.remove('closing');
+    this.videoModal?.setAttribute('aria-hidden', 'false');
     this.wakeHUD();
+
+    const closeBtn = this.videoModal?.querySelector<HTMLButtonElement>('#video-modal-btn-close');
+    closeBtn?.focus();
   }
 
   /**
@@ -659,16 +678,22 @@ export class RoomViewer {
     }
 
     this.videoModal.classList.add('closing');
+    this.videoModal.setAttribute('aria-hidden', 'true');
     setTimeout(() => {
       this.videoModal?.classList.add('hidden');
       this.videoModal?.classList.remove('closing');
     }, 180);
+
+    if (this.modalTriggerElement && typeof this.modalTriggerElement.focus === 'function') {
+      this.modalTriggerElement.focus();
+      this.modalTriggerElement = null;
+    }
   }
 
   /**
    * Opens the Microphone Permission Dialogue Modal with privacy explainer.
    */
-  public openMicPermissionModal(): void {
+  public openMicPermissionModal(triggerEl?: HTMLElement | null): void {
     if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
       this.closeSnapshotModal();
     }
@@ -676,13 +701,19 @@ export class RoomViewer {
       this.closeVideoModal();
     }
 
+    this.modalTriggerElement = triggerEl || (document.activeElement as HTMLElement | null);
+
     if (!this.micPermissionModal) {
       this.renderMicPermissionModal();
     }
 
     this.micPermissionModal?.classList.remove('hidden');
     this.micPermissionModal?.classList.remove('closing');
+    this.micPermissionModal?.setAttribute('aria-hidden', 'false');
     this.wakeHUD();
+
+    const allowBtn = this.micPermissionModal?.querySelector<HTMLButtonElement>('#mic-modal-btn-allow');
+    allowBtn?.focus();
   }
 
   /**
@@ -692,10 +723,16 @@ export class RoomViewer {
     if (!this.micPermissionModal || this.micPermissionModal.classList.contains('hidden')) return;
 
     this.micPermissionModal.classList.add('closing');
+    this.micPermissionModal.setAttribute('aria-hidden', 'true');
     setTimeout(() => {
       this.micPermissionModal?.classList.add('hidden');
       this.micPermissionModal?.classList.remove('closing');
     }, 180);
+
+    if (this.modalTriggerElement && typeof this.modalTriggerElement.focus === 'function') {
+      this.modalTriggerElement.focus();
+      this.modalTriggerElement = null;
+    }
   }
 
   /**
@@ -974,7 +1011,7 @@ export class RoomViewer {
           <button type="button" class="audio-hud-icon-btn" id="audio-hud-btn-mute" title="Toggle Mute (U)" aria-label="Toggle Mute">
             🔊
           </button>
-          <button type="button" class="audio-hud-icon-btn" id="audio-hud-btn-collapse" title="Collapse / Expand Visualizer" aria-label="Toggle Audio HUD Body">
+          <button type="button" class="audio-hud-icon-btn" id="audio-hud-btn-collapse" title="Collapse / Expand Visualizer" aria-label="Toggle Audio Visualizer" aria-expanded="true" aria-controls="audio-hud-body">
             ▾
           </button>
         </div>
@@ -1017,10 +1054,11 @@ export class RoomViewer {
     }, { signal });
 
     audioHud.querySelector('#audio-hud-btn-collapse')?.addEventListener('click', () => {
-      audioHud.classList.toggle('collapsed');
+      const isCollapsed = audioHud.classList.toggle('collapsed');
       const collapseBtn = audioHud.querySelector('#audio-hud-btn-collapse');
       if (collapseBtn) {
-        collapseBtn.textContent = audioHud.classList.contains('collapsed') ? '▸' : '▾';
+        collapseBtn.textContent = isCollapsed ? '▸' : '▾';
+        collapseBtn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
       }
       this.wakeHUD();
     }, { signal });
@@ -1403,18 +1441,31 @@ export class RoomViewer {
   private setupMobileDrawer(): void {
     const signal = this.abortController?.signal;
 
+    this.mobileToggleBtn?.setAttribute('aria-expanded', 'false');
+    this.mobileToggleBtn?.setAttribute('aria-haspopup', 'dialog');
+    this.mobileToggleBtn?.setAttribute('aria-controls', 'room-mobile-drawer');
+
     const openDrawer = () => {
       this.isMobileDrawerOpen = true;
+      this.mobileToggleBtn?.setAttribute('aria-expanded', 'true');
       this.mobileDrawer?.classList.add('open');
       this.mobileScrim?.classList.add('open');
       this.wakeHUD();
+
+      const closeBtn = this.mobileDrawer?.querySelector<HTMLButtonElement>('#room-drawer-btn-close');
+      closeBtn?.focus();
     };
 
     const closeDrawer = () => {
       this.isMobileDrawerOpen = false;
+      this.mobileToggleBtn?.setAttribute('aria-expanded', 'false');
       this.mobileDrawer?.classList.remove('open');
       this.mobileScrim?.classList.remove('open');
       this.wakeHUD();
+
+      if (this.mobileToggleBtn && typeof this.mobileToggleBtn.focus === 'function') {
+        this.mobileToggleBtn.focus();
+      }
     };
 
     this.mobileToggleBtn?.addEventListener('click', openDrawer, { signal });
@@ -1423,11 +1474,48 @@ export class RoomViewer {
     const closeBtn = this.mobileDrawer?.querySelector('#room-drawer-btn-close');
     closeBtn?.addEventListener('click', closeDrawer, { signal });
 
-    const drawerHeader = this.mobileDrawer?.querySelector('#room-drawer-header');
+    const drawerHeader = this.mobileDrawer?.querySelector<HTMLElement>('#room-drawer-header');
     drawerHeader?.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('#room-drawer-btn-close')) return;
       closeDrawer();
     }, { signal });
+
+    // Touch swipe-down to dismiss drawer gesture
+    let touchStartY = 0;
+    let touchCurrentY = 0;
+    let isSwiping = false;
+
+    drawerHeader?.addEventListener('touchstart', (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        touchCurrentY = touchStartY;
+        isSwiping = true;
+      }
+    }, { passive: true, signal });
+
+    drawerHeader?.addEventListener('touchmove', (e: TouchEvent) => {
+      if (isSwiping && e.touches.length === 1 && this.mobileDrawer) {
+        touchCurrentY = e.touches[0].clientY;
+        const deltaY = touchCurrentY - touchStartY;
+        if (deltaY > 0) {
+          this.mobileDrawer.style.transform = `translateY(${deltaY}px)`;
+        }
+      }
+    }, { passive: true, signal });
+
+    const endSwipe = () => {
+      if (isSwiping && this.mobileDrawer) {
+        isSwiping = false;
+        const deltaY = touchCurrentY - touchStartY;
+        this.mobileDrawer.style.transform = '';
+        if (deltaY > 40) {
+          closeDrawer();
+        }
+      }
+    };
+
+    drawerHeader?.addEventListener('touchend', endSwipe, { signal });
+    drawerHeader?.addEventListener('touchcancel', endSwipe, { signal });
   }
 
   /**
@@ -1993,7 +2081,39 @@ export class RoomViewer {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
       if (this.isDestroyed) return;
 
-      // Ignore when focused inside an input/textarea/select
+      // Check if any modal is currently open and trap Tab inside it
+      const activeModal =
+        (this.snapshotModal && !this.snapshotModal.classList.contains('hidden') && this.snapshotModal) ||
+        (this.videoModal && !this.videoModal.classList.contains('hidden') && this.videoModal) ||
+        (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden') && this.micPermissionModal);
+
+      if (activeModal && e.key === 'Tab') {
+        const focusable = Array.from(
+          activeModal.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+        if (focusable.length > 0) {
+          const firstEl = focusable[0];
+          const lastEl = focusable[focusable.length - 1];
+
+          if (e.shiftKey) {
+            if (document.activeElement === firstEl) {
+              e.preventDefault();
+              lastEl.focus();
+            }
+          } else {
+            if (document.activeElement === lastEl) {
+              e.preventDefault();
+              firstEl.focus();
+            }
+          }
+        }
+        return;
+      }
+
+      // Ignore shortcuts when focused inside an input/textarea/select
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
         return;
@@ -2201,6 +2321,9 @@ export class RoomViewer {
       'pointerdown',
       (e: PointerEvent) => {
         this.isPointerDown = true;
+        try {
+          this.canvasContainer?.setPointerCapture?.(e.pointerId);
+        } catch {}
         dispatchPointerEvent('down', e);
       },
       { signal }
@@ -2218,6 +2341,11 @@ export class RoomViewer {
       'pointerup',
       (e: PointerEvent) => {
         this.isPointerDown = false;
+        try {
+          if (this.canvasContainer?.hasPointerCapture?.(e.pointerId)) {
+            this.canvasContainer?.releasePointerCapture?.(e.pointerId);
+          }
+        } catch {}
         dispatchPointerEvent('up', e);
       },
       { signal }
@@ -2236,9 +2364,35 @@ export class RoomViewer {
       'pointercancel',
       (e: PointerEvent) => {
         this.isPointerDown = false;
+        try {
+          if (this.canvasContainer?.hasPointerCapture?.(e.pointerId)) {
+            this.canvasContainer?.releasePointerCapture?.(e.pointerId);
+          }
+        } catch {}
         dispatchPointerEvent('leave', e);
       },
       { signal }
+    );
+
+    // Touch event handling: single-finger gestures drive simulation forces without triggering browser pull-to-refresh
+    this.canvasContainer.addEventListener(
+      'touchstart',
+      (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault();
+        }
+      },
+      { passive: false, signal }
+    );
+
+    this.canvasContainer.addEventListener(
+      'touchmove',
+      (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+          e.preventDefault();
+        }
+      },
+      { passive: false, signal }
     );
   }
 

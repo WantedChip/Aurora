@@ -55,10 +55,54 @@ body {
   color: var(--text-primary);
 }
 
-/* Interactive Focus Indicators */
+/* Mobile Touch Ergonomics & Tap Highlight */
+html, body, button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Interactive Focus Indicators with High-Contrast --border-focus */
+:focus {
+  outline: none;
+}
+
 :focus-visible {
-  outline: 2px solid var(--border-focus);
-  outline-offset: 2px;
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 2px !important;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex="0"]:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 2px !important;
+}
+
+/* Skip to Main Content Link for Screen Readers & Keyboard Navigation */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 1000;
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+  border: 2px solid var(--border-focus);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-reg);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--duration-fast) var(--ease-out-expo);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 16px;
 }
 
 /* Basic Link Reset */

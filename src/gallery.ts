@@ -28,6 +28,7 @@ export class GalleryView {
   private layoutMode: 'grid' | 'list' = 'grid';
   private filteredRooms: RoomMetadata[] = [...ROOM_CATALOG];
   private isModalOpen = false;
+  private previousActiveElement: HTMLElement | null = null;
   private searchDebounceTimer: number | null = null;
 
   /**
@@ -158,10 +159,11 @@ export class GalleryView {
   /**
    * Opens the curatorial About / Info modal dialog.
    */
-  public openAboutModal(): void {
+  public openAboutModal(triggerEl?: HTMLElement | null): void {
     const modal = document.getElementById('about-modal');
     if (!modal) return;
 
+    this.previousActiveElement = triggerEl || (document.activeElement as HTMLElement | null);
     this.isModalOpen = true;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -187,6 +189,11 @@ export class GalleryView {
 
     if (this.lenis) {
       this.lenis.start();
+    }
+
+    if (this.previousActiveElement && typeof this.previousActiveElement.focus === 'function') {
+      this.previousActiveElement.focus();
+      this.previousActiveElement = null;
     }
   }
 
@@ -253,6 +260,9 @@ export class GalleryView {
 
     this.container.innerHTML = `
       <div class="gallery-shell">
+        <!-- Skip to Content Navigation Link for Accessibility -->
+        <a href="#gallery-section" class="skip-link">Skip to exhibition chambers</a>
+
         <!-- Sticky Navigation Header -->
         <header class="gallery-header" role="banner">
           <a href="#/" class="header-brand" aria-label="Aurora Observatory Home">
@@ -575,10 +585,13 @@ export class GalleryView {
               cat => `
             <button
               type="button"
+              id="filter-pill-${cat.id}"
               class="filter-pill ${this.activeCategory === cat.id ? 'active' : ''}"
               data-category="${cat.id}"
               role="tab"
               aria-selected="${this.activeCategory === cat.id ? 'true' : 'false'}"
+              aria-controls="exhibit-grid"
+              tabindex="${this.activeCategory === cat.id ? '0' : '-1'}"
             >
               ${cat.id !== 'all' ? `<span class="category-dot cat-${cat.id}"></span>` : ''}
               <span class="pill-name">${cat.name}</span>
@@ -604,6 +617,7 @@ export class GalleryView {
               class="gallery-search-input"
               placeholder="Filter by algorithm, technique, or math... (Press '/' to search)"
               aria-label="Filter exhibits by title, algorithm, tech, or tags"
+              aria-controls="exhibit-grid"
               autocomplete="off"
               spellcheck="false"
               value="${this.searchQuery}"
@@ -615,7 +629,7 @@ export class GalleryView {
           </div>
 
           <div class="toolbar-actions">
-            <div class="results-badge" id="results-count-badge">
+            <div class="results-badge" id="results-count-badge" role="status" aria-live="polite">
               <span>Showing <strong id="results-count-num">${this.filteredRooms.length}</strong> exhibits</span>
             </div>
 
@@ -723,7 +737,7 @@ export class GalleryView {
           ${this.filteredRooms
             .map(
               room => `
-            <article class="exhibit-card" data-id="${room.id}" data-category="${room.category}" role="button" tabindex="0" aria-label="${room.name}">
+            <article class="exhibit-card" data-id="${room.id}" data-category="${room.category}" role="button" tabindex="0" aria-label="Room ${room.indexDisplay}: ${room.name} — ${room.categoryName}. ${room.mathModel}. ${room.description}">
               <div class="card-preview-wrapper">
                 <canvas class="card-preview-canvas" data-room-id="${room.id}" width="320" height="200"></canvas>
                 <div class="card-badges">
@@ -758,7 +772,7 @@ export class GalleryView {
           ${this.filteredRooms
             .map(
               room => `
-            <article class="exhibit-list-row" data-id="${room.id}" data-category="${room.category}" role="button" tabindex="0" aria-label="${room.name}">
+            <article class="exhibit-list-row" data-id="${room.id}" data-category="${room.category}" role="button" tabindex="0" aria-label="Room ${room.indexDisplay}: ${room.name} — ${room.categoryName}. ${room.mathModel}">
               <div class="list-col-index">${room.indexDisplay}</div>
               <div class="list-col-preview">
                 <canvas class="card-preview-canvas list-preview-canvas" data-room-id="${room.id}" width="64" height="40"></canvas>
@@ -873,7 +887,7 @@ export class GalleryView {
       { signal }
     );
 
-    // Category Pill Clicks
+    // Category Pill Clicks & Keyboard Arrow Navigation
     const toolbar = document.getElementById('gallery-toolbar');
     toolbar?.addEventListener(
       'click',
@@ -881,6 +895,41 @@ export class GalleryView {
         const target = (e.target as HTMLElement).closest<HTMLButtonElement>('.filter-pill');
         if (target && target.dataset.category) {
           this.setCategory(target.dataset.category as RoomCategory | 'all');
+        }
+      },
+      { signal }
+    );
+
+    const pillsRow = toolbar?.querySelector<HTMLElement>('.filter-pills-row');
+    pillsRow?.addEventListener(
+      'keydown',
+      e => {
+        const pills = Array.from(pillsRow.querySelectorAll<HTMLButtonElement>('.filter-pill'));
+        const currentIdx = pills.findIndex(p => p === document.activeElement);
+        if (currentIdx === -1) return;
+
+        let nextIdx = currentIdx;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          nextIdx = (currentIdx + 1) % pills.length;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          nextIdx = (currentIdx - 1 + pills.length) % pills.length;
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          nextIdx = 0;
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          nextIdx = pills.length - 1;
+        }
+
+        if (nextIdx !== currentIdx) {
+          const nextPill = pills[nextIdx];
+          nextPill.focus();
+          const cat = nextPill.dataset.category as RoomCategory | 'all';
+          if (cat) {
+            this.setCategory(cat);
+          }
         }
       },
       { signal }
@@ -932,13 +981,13 @@ export class GalleryView {
 
     // About Modal Triggers
     const aboutBtn = document.getElementById('header-btn-about');
-    aboutBtn?.addEventListener('click', () => this.openAboutModal(), { signal });
+    aboutBtn?.addEventListener('click', () => this.openAboutModal(aboutBtn), { signal });
 
     const shortcutsBtn = document.getElementById('header-btn-shortcuts');
-    shortcutsBtn?.addEventListener('click', () => this.openAboutModal(), { signal });
+    shortcutsBtn?.addEventListener('click', () => this.openAboutModal(shortcutsBtn), { signal });
 
     const footerAbout = document.getElementById('footer-link-about');
-    footerAbout?.addEventListener('click', () => this.openAboutModal(), { signal });
+    footerAbout?.addEventListener('click', () => this.openAboutModal(footerAbout), { signal });
 
     const closeBtn = document.getElementById('modal-close-btn');
     closeBtn?.addEventListener('click', () => this.closeAboutModal(), { signal });
@@ -959,6 +1008,35 @@ export class GalleryView {
     window.addEventListener(
       'keydown',
       e => {
+        // Trap Tab key navigation within About modal when open
+        if (this.isModalOpen && e.key === 'Tab') {
+          const modal = document.getElementById('about-modal');
+          if (modal) {
+            const focusable = Array.from(
+              modal.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+              )
+            ).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+            if (focusable.length > 0) {
+              const firstEl = focusable[0];
+              const lastEl = focusable[focusable.length - 1];
+
+              if (e.shiftKey) {
+                if (document.activeElement === firstEl) {
+                  e.preventDefault();
+                  lastEl.focus();
+                }
+              } else {
+                if (document.activeElement === lastEl) {
+                  e.preventDefault();
+                  firstEl.focus();
+                }
+              }
+            }
+          }
+        }
+
         // Close modal on Escape
         if (e.key === 'Escape') {
           if (this.isModalOpen) {

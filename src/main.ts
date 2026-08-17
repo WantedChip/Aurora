@@ -10,7 +10,7 @@ import './styles/tweakpane-theme.css';
 
 import { router, type RouteState } from './lib/router';
 import { GalleryView } from './gallery';
-import { RoomViewer } from './room-viewer';
+import type { RoomViewer } from './room-viewer';
 
 // Active view instances
 let currentGalleryView: GalleryView | null = null;
@@ -28,11 +28,13 @@ async function mountGalleryView(app: HTMLElement): Promise<void> {
 
 /**
  * Mounts an individual room viewport using the unified RoomViewer controller.
+ * Lazily loads RoomViewer and Tweakpane only when navigating to a specific room.
  */
 async function mountRoomView(app: HTMLElement, roomId: string, route: RouteState): Promise<void> {
   teardownActiveViews(app);
 
-  currentRoomViewer = new RoomViewer();
+  const { RoomViewer: LoadedRoomViewer } = await import('./room-viewer');
+  currentRoomViewer = new LoadedRoomViewer();
   await currentRoomViewer.mount(app, roomId, route);
 }
 

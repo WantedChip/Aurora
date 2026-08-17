@@ -1,3 +1,5 @@
+# Cloudflare Workers Static Assets Configuration
+# Target: Cloudflare Workers Native Static Assets SPA Hosting
 name = "aurora"
 compatibility_date = "2026-08-14"
 

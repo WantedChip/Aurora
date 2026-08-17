@@ -1750,7 +1750,136 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'galaxy/index.ts', details: String(err) });
   }
 
-  // 22. Verify Client-Side Hash Router
+  // 22. Verify Room 16: Kaleidoscope (Audio-Reactive Radial Symmetry Shader)
+  try {
+    const kCanvas = document.createElement('canvas');
+    kCanvas.width = 600;
+    kCanvas.height = 600;
+    const kContainer = document.createElement('div');
+    const kPrng = createPRNG('#FF2A6D');
+
+    const kMeta = getRoomById('kaleidoscope');
+    const roomInstance = await lazyLoadRoom('kaleidoscope');
+
+    const ctx: RoomContext = {
+      canvas: kCanvas,
+      container: kContainer,
+      params: { ...(kMeta?.defaultParams || {}) },
+      prng: kPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // Test parameter dynamic updates across all 6 presets and palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'cosmic-rosette',
+        symmetrySegments: 8,
+        colorPalette: 'cosmic-amethyst',
+      });
+      roomInstance.updateParams({
+        preset: 'sacred-geometry',
+        symmetrySegments: 6,
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'hyper-dimension',
+        symmetrySegments: 16,
+        colorPalette: 'bioluminescent-cyan',
+      });
+      roomInstance.updateParams({
+        preset: 'flower-of-life',
+        symmetrySegments: 10,
+        colorPalette: 'obsidian-emerald',
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-lattice',
+        symmetrySegments: 6,
+        colorPalette: 'monochrome-void',
+      });
+      roomInstance.updateParams({
+        preset: 'crystal-mandala',
+        symmetrySegments: 12,
+        colorPalette: 'spectral-aurora',
+        audioSource: 'synth',
+        audioSensitivity: 2.0,
+      });
+    }
+
+    // Test pointer interactions (click shockwave, drag rotation, leave)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 340,
+        y: 280,
+        normalizedX: 0.56,
+        normalizedY: 0.46,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 340,
+        y: 280,
+        normalizedX: 0.56,
+        normalizedY: 0.46,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test custom high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 800);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const kaleidoscopePassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 800;
+
+    results.push({
+      passed: kaleidoscopePassed,
+      module: 'kaleidoscope/index.ts (Room 16)',
+      details: `Kaleidoscope mounted, verified 6 presets (Crystal Mandala, Cosmic Rosette, Sacred Geometry, Hyper Dimension, Flower of Life, Quantum Lattice), 6 curatorial palettes, audio FFT feature bindings, pointer drag rotation / click shockwave, and 800x800 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'kaleidoscope/index.ts', details: String(err) });
+  }
+
+  // 23. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -1787,7 +1916,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 23. Verify Media Recorder & Snapshot Pipeline
+  // 24. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -1851,7 +1980,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 24. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 25. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

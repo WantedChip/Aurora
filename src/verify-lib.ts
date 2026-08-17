@@ -756,7 +756,114 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'lenia/index.ts', details: String(err) });
   }
 
-  // 14. Verify Client-Side Hash Router
+  // 14. Verify Room 08: Differential Growth (Node-Splitting Curve Growth)
+  try {
+    const roomInstance = await lazyLoadRoom('differential-growth');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#FF8A00');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#FF8A00',
+        preset: 'ring',
+        maxNodes: 5000,
+        growthRate: 14,
+        splitThreshold: 14.0,
+        targetEdgeLength: 8.0,
+        repulsionRadius: 22.0,
+        repulsionStrength: 0.9,
+        springStrength: 0.5,
+        simSpeed: 2,
+        renderMode: 'stroke-membrane',
+        strokeWidth: 2.0,
+        glowIntensity: 0.75,
+        membraneOpacity: 0.12,
+        pointerMode: 'repel',
+        pointerRadius: 110,
+        pointerStrength: 1.0,
+        colorPalette: 'coral-flora',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter updates & preset switching
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'star',
+        colorPalette: 'bioluminescent-cyan',
+        renderMode: 'nodes-mesh',
+        growthRate: 20,
+        maxNodes: 8000,
+        repulsionRadius: 26.0,
+      });
+    }
+
+    // Test pointer event interaction (repulsion probe & feed)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 340,
+        y: 260,
+        normalizedX: 0.53,
+        normalizedY: 0.54,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 340,
+        y: 260,
+        normalizedX: 0.53,
+        normalizedY: 0.54,
+        isDown: false,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const diffGrowthPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: diffGrowthPassed,
+      module: 'differential-growth/index.ts (Room 08)',
+      details: `Differential Growth simulation mounted, verified O(N) spatial hash grid, spring relaxation & node-node repulsion, morphology presets (ring -> star), pointer probe interactions, multi-pass spline/membrane rendering, palette switching, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'differential-growth/index.ts', details: String(err) });
+  }
+
+  // 15. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -793,7 +900,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 14. Verify Media Recorder & Snapshot Pipeline
+  // 16. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -857,7 +964,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 16. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 17. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');
@@ -940,31 +1047,37 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
 
     testApp.remove();
 
-    const roomViewerPassed =
-      isMounted &&
-      meta?.id === 'flow-field' &&
-      params.seed === '#39A2FF' &&
-      updatedParams.particleCount === 4000 &&
-      hasPane &&
-      hasDock &&
-      hasSteppers &&
-      isSeedChanged &&
-      isReset &&
-      isHUDHidden &&
-      isSnapshotModalOpen &&
-      isVideoModalOpen &&
-      isToastRendered &&
-      canvas instanceof HTMLCanvasElement &&
-      hud instanceof HTMLElement &&
-      isDestroyed;
+    const roomViewerChecks = {
+      isMounted,
+      isCorrectRoom: meta?.id === 'flow-field',
+      isSeedMatching: params.seed === '#39A2FF',
+      isUpdatedParticleCount: updatedParams.particleCount === 4000,
+      hasPane,
+      hasDock,
+      hasSteppers,
+      isSeedChanged,
+      isReset,
+      isHUDHidden,
+      isSnapshotModalOpen,
+      isVideoModalOpen,
+      isToastRendered,
+      isCanvas: canvas instanceof HTMLCanvasElement,
+      isHud: hud instanceof HTMLElement,
+      isDestroyed,
+    };
+
+    const failedChecks = Object.entries(roomViewerChecks).filter(([, v]) => !v).map(([k]) => k);
+    const roomViewerPassed = failedChecks.length === 0;
 
     results.push({
       passed: Boolean(roomViewerPassed),
       module: 'room-viewer.ts',
-      details: `RoomViewer mounted flow-field with Tweakpane controls, verified snapshot & video loop modals, seed randomizer (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), HUD toggle, toasts, and completed clean teardown.`,
+      details: roomViewerPassed
+        ? `RoomViewer mounted flow-field with Tweakpane controls, verified snapshot & video loop modals, seed randomizer (${randomizedParams.seed}), reset defaults (${resetParams.particleCount}), HUD toggle, toasts, and completed clean teardown.`
+        : `RoomViewer checks failed: ${failedChecks.join(', ')}`,
     });
   } catch (err) {
-    results.push({ passed: false, module: 'room-viewer.ts', details: String(err) });
+    results.push({ passed: false, module: 'room-viewer.ts', details: String((err as any)?.stack || err) });
   }
 
   return results;

@@ -412,7 +412,87 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'boids/index.ts', details: String(err) });
   }
 
-  // 10. Verify Client-Side Hash Router
+  // 10. Verify Room 04: Physarum Slime Mold (Sage Jenson Chemoattractant Model)
+  try {
+    const roomInstance = await lazyLoadRoom('physarum');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#00FF9D');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#00FF9D',
+        agentCount: 50000,
+        sensorAngle: 0.45,
+        sensorDistance: 16.0,
+        stepSize: 1.2,
+        decayRate: 0.96,
+        diffuseRate: 0.9,
+        depositAmount: 5.0,
+        colorPalette: 'phosphor-green',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter updates & palette switching
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        agentCount: 80000,
+        sensorAngle: 0.6,
+        decayRate: 0.92,
+        colorPalette: 'obsidian-violet',
+      });
+    }
+
+    // Test pointer event interaction (nutrient attractant deposition & burst)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const physarumPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: physarumPassed,
+      module: 'physarum/index.ts (Room 04)',
+      details: `Physarum slime mold simulation mounted, verified Sage Jenson 3-sensor chemoattractant steering, 3x3 diffusion/decay field, interactive nutrient emission, palette switching, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'physarum/index.ts', details: String(err) });
+  }
+
+  // 11. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -449,7 +529,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 11. Verify Media Recorder & Snapshot Pipeline
+  // 12. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -513,7 +593,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 12. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 13. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

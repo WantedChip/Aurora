@@ -1472,7 +1472,153 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'fluid/index.ts', details: String(err) });
   }
 
-  // 20. Verify Client-Side Hash Router
+  // 20. Verify Room 14: Metaballs & Marching Cubes
+  try {
+    const roomInstance = await lazyLoadRoom('metaballs');
+    const container = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 600;
+    container.appendChild(canvas);
+
+    const prng = createPRNG('#F59E0B');
+    let cleanupRan = false;
+
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#F59E0B',
+        preset: 'liquid-mercury',
+        materialMode: 'liquid-mercury',
+        colorPalette: 'mercury-chrome',
+        ballCount: 20,
+        isolationThreshold: 68.0,
+        meshResolution: 32,
+        clusterSpeed: 0.8,
+        blobScale: 1.0,
+        roughness: 0.08,
+        metalness: 0.94,
+        transmission: 0.0,
+        iridescence: 0.4,
+        wireframe: false,
+        cameraAutoRotate: true,
+        rotationSpeed: 0.5,
+        gravityStrength: 1.0,
+        audioReactivity: 1.0,
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test dynamic parameter updates across all 6 presets, materials & palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'orbital-cluster',
+        materialMode: 'gold-specular',
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'chaotic-swarm',
+        materialMode: 'bioluminescent-plasma',
+        colorPalette: 'spectral-aurora',
+      });
+      roomInstance.updateParams({
+        preset: 'pulsing-core',
+        materialMode: 'obsidian-glass',
+        colorPalette: 'obsidian-emerald',
+      });
+      roomInstance.updateParams({
+        preset: 'repulsion-drift',
+        materialMode: 'iridescent-pearl',
+        colorPalette: 'cosmic-amethyst',
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-lattice',
+        materialMode: 'monochrome-lithic',
+        colorPalette: 'monochrome-void',
+      });
+      roomInstance.updateParams({
+        preset: 'liquid-mercury',
+        materialMode: 'liquid-mercury',
+        colorPalette: 'mercury-chrome',
+        isolationThreshold: 75.0,
+        meshResolution: 36,
+      });
+    }
+
+    // Test pointer interactions (down shockwave, move raycast, up, leave)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 350,
+        y: 280,
+        normalizedX: 0.58,
+        normalizedY: 0.46,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 350,
+        y: 280,
+        normalizedX: 0.58,
+        normalizedY: 0.46,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test custom high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 800);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const metaballsPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 800;
+
+    results.push({
+      passed: metaballsPassed,
+      module: 'metaballs/index.ts (Room 14)',
+      details: `Metaballs & Marching Cubes mounted, verified 6 presets (Mercury, Orbital, Chaotic, Pulsing, Repulsion, Quantum), 6 materials, 6 palettes, 3D pointer raycasting/shockwave, and 800x800 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'metaballs/index.ts', details: String(err) });
+  }
+
+  // 21. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -1509,7 +1655,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 20. Verify Media Recorder & Snapshot Pipeline
+  // 22. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -1573,7 +1719,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 21. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 23. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

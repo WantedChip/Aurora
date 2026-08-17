@@ -187,6 +187,7 @@ export class DifferentialGrowthSimulation {
   // Active parameter values (smoothly damped)
   public params: DifferentialGrowthParams;
   public targetParams: DifferentialGrowthParams;
+  private substepAccumulator: number = 0.0;
 
   // Interactive pointer tracking
   public pointer = {
@@ -408,7 +409,10 @@ export class DifferentialGrowthSimulation {
     this.params.pointerRadius = dampParameter(this.params.pointerRadius, this.targetParams.pointerRadius, lambda, dtSeconds);
     this.params.pointerStrength = dampParameter(this.params.pointerStrength, this.targetParams.pointerStrength, lambda, dtSeconds);
 
-    const substeps = Math.max(1, Math.round(this.params.simSpeed));
+    // Frame-rate independent physics substeps
+    this.substepAccumulator += dtSeconds * this.params.simSpeed * 60.0;
+    const substeps = Math.min(6, Math.floor(this.substepAccumulator));
+    this.substepAccumulator -= substeps;
     for (let s = 0; s < substeps; s++) {
       this.stepPhysics();
     }

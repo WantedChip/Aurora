@@ -499,6 +499,7 @@ export class StrangeAttractorsRoom implements RoomInstance {
   // Stream State for Continuous Flow
   private streamHeads: Array<[number, number, number]> = [];
   private streamStepIndices: Int32Array = new Int32Array(0);
+  private streamStepAccumulator = 0.0;
 
   // Canvas 2D Fallback Resources
   private ctx2d: CanvasRenderingContext2D | null = null;
@@ -979,13 +980,13 @@ export class StrangeAttractorsRoom implements RoomInstance {
   /**
    * Advances the live continuous trajectory streams forward in time.
    */
-  private stepLiveStreams(): void {
+  private stepLiveStreams(dt: number): void {
     const config = ATTRACTOR_CONFIGS[this.params.attractorType];
     if (!config || config.isDiscrete || this.params.evolutionSpeed <= 0.0) {
       return;
     }
 
-    const dt = this.params.dt;
+    const simDt = this.params.dt;
     const pA = this.params.paramA;
     const pB = this.params.paramB;
     const pC = this.params.paramC;
@@ -999,7 +1000,10 @@ export class StrangeAttractorsRoom implements RoomInstance {
     if (streamCount === 0) return;
 
     const pointsPerStream = Math.floor(this.activePointCount / streamCount);
-    const substeps = Math.max(1, Math.min(8, Math.round(3 * this.params.evolutionSpeed)));
+    this.streamStepAccumulator += dt * (3 * this.params.evolutionSpeed) * 60.0;
+    const substeps = Math.min(8, Math.floor(this.streamStepAccumulator));
+    this.streamStepAccumulator -= substeps;
+    if (substeps <= 0) return;
     const tempColor = { r: 0, g: 0, b: 0 };
 
     for (let s = 0; s < streamCount; s++) {
@@ -1007,7 +1011,7 @@ export class StrangeAttractorsRoom implements RoomInstance {
       let lastSpeed = 0;
 
       for (let sub = 0; sub < substeps; sub++) {
-        const [nx, ny, nz, speed] = rk4Step(this.params.attractorType, x, y, z, dt, pA, pB, pC, pD);
+        const [nx, ny, nz, speed] = rk4Step(this.params.attractorType, x, y, z, simDt, pA, pB, pC, pD);
         x = nx;
         y = ny;
         z = nz;
@@ -1073,7 +1077,7 @@ export class StrangeAttractorsRoom implements RoomInstance {
 
     // Evolve live streams if animated
     if (!this.prefersReducedMotion && this.params.evolutionSpeed > 0) {
-      this.stepLiveStreams();
+      this.stepLiveStreams(dt);
     }
 
     if (this.backendMode === 'webgl' && this.renderer && this.scene && this.camera && this.controls) {

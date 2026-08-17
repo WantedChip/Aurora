@@ -287,6 +287,7 @@ export class LeniaRoom implements RoomInstance {
   // Active & Target Parameters
   private params: LeniaParams = { ...DEFAULT_LENIA_PARAMS };
   private targetParams: LeniaParams = { ...DEFAULT_LENIA_PARAMS };
+  private stepAccumulator = 0.0;
 
   // TSL Uniform Nodes
   private uResolution = uniform(new THREE.Vector2(800, 600));
@@ -856,8 +857,10 @@ export class LeniaRoom implements RoomInstance {
     // Apply interactive pointer painting
     this.handlePointerPainting();
 
-    // Execute simulation steps
-    const substeps = Math.max(1, Math.min(4, Math.round(this.params.simSpeed)));
+    // Execute simulation steps with accumulator for strict frame-rate independence
+    this.stepAccumulator += dt * this.params.simSpeed * 60.0;
+    const substeps = Math.min(4, Math.floor(this.stepAccumulator));
+    this.stepAccumulator -= substeps;
     for (let s = 0; s < substeps; s++) {
       this.stepSimulation();
     }

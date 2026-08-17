@@ -315,6 +315,7 @@ export class CyclicAutomataRoom implements RoomInstance {
   // Active & Target Parameters
   private params: CyclicAutomataParams = { ...DEFAULT_CYCLIC_PARAMS };
   private targetParams: CyclicAutomataParams = { ...DEFAULT_CYCLIC_PARAMS };
+  private stepAccumulator = 0.0;
 
   // TSL Uniform Nodes
   private uResolution = uniform(new THREE.Vector2(800, 600));
@@ -707,8 +708,10 @@ export class CyclicAutomataRoom implements RoomInstance {
     // Apply interactive pointer disturbance
     this.applyPointerInteraction();
 
-    // Execute Cyclic Cellular Automata substeps
-    const substeps = Math.max(1, Math.min(10, Math.round(this.params.simSpeed)));
+    // Execute Cyclic Cellular Automata substeps with accumulator for strict frame-rate independence
+    this.stepAccumulator += dt * this.params.simSpeed * 60.0;
+    const substeps = Math.min(10, Math.floor(this.stepAccumulator));
+    this.stepAccumulator -= substeps;
     for (let s = 0; s < substeps; s++) {
       this.stepSimulation();
     }

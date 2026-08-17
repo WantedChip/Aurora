@@ -277,6 +277,7 @@ export class ReactionDiffusionRoom implements RoomInstance {
   // Active & Target Parameters
   private params: ReactionDiffusionParams = { ...DEFAULT_REACTION_DIFFUSION_PARAMS };
   private targetParams: ReactionDiffusionParams = { ...DEFAULT_REACTION_DIFFUSION_PARAMS };
+  private stepAccumulator = 0.0;
 
   // TSL Uniform Nodes
   private uResolution = uniform(new THREE.Vector2(800, 600));
@@ -637,8 +638,10 @@ export class ReactionDiffusionRoom implements RoomInstance {
     // Apply chemical injection from cursor interaction
     this.applyPointerInteraction();
 
-    // Execute Gray-Scott reaction-diffusion substeps
-    const substeps = Math.max(1, Math.min(24, Math.round(this.params.simSpeed)));
+    // Execute Gray-Scott reaction-diffusion substeps with accumulator for strict frame-rate independence
+    this.stepAccumulator += dt * this.params.simSpeed * 60.0;
+    const substeps = Math.min(24, Math.floor(this.stepAccumulator));
+    this.stepAccumulator -= substeps;
     for (let s = 0; s < substeps; s++) {
       this.stepSimulation();
     }

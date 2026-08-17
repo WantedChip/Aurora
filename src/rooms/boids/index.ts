@@ -558,8 +558,9 @@ export class BoidsRoom implements RoomInstance {
         }
       }
 
-      // Smooth panic decay
-      this.panic[i] = this.panic[i] * 0.88 + panicLevel * 0.12;
+      // Frame-rate independent exponential panic damping
+      const panicDecay = Math.exp(-7.5 * dt);
+      this.panic[i] = this.panic[i] * panicDecay + panicLevel * (1.0 - panicDecay);
 
       // Clamp total steering acceleration
       const accLen = Math.sqrt(ax * ax + ay * ay);
@@ -568,9 +569,10 @@ export class BoidsRoom implements RoomInstance {
         ay = (ay / accLen) * maxForce * 4.0;
       }
 
-      // Update velocity with acceleration
-      let nvx = (vxi + ax * dtScale) * 0.985;
-      let nvy = (vyi + ay * dtScale) * 0.985;
+      // Update velocity with acceleration and frame-rate independent drag
+      const dragFactor = Math.pow(0.985, dtScale);
+      let nvx = (vxi + ax * dtScale) * dragFactor;
+      let nvy = (vyi + ay * dtScale) * dragFactor;
 
       // Speed limits
       const curSpeed = Math.sqrt(nvx * nvx + nvy * nvy);

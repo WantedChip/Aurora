@@ -1677,6 +1677,7 @@ export class WaveFunctionCollapseRoom implements RoomInstance {
   private currentSuperpositionAlpha: number = DEFAULT_WFC_PARAMS.superpositionAlpha;
   private currentFrontierGlow: number = DEFAULT_WFC_PARAMS.frontierGlow;
   private currentLineWidth: number = DEFAULT_WFC_PARAMS.lineWidth;
+  private stepAccumulator: number = 0.0;
 
   public async mount(ctx: RoomContext): Promise<RoomCleanupFn> {
     this.canvas = ctx.canvas;
@@ -1835,15 +1836,27 @@ export class WaveFunctionCollapseRoom implements RoomInstance {
       dt
     );
 
-    // Run WFC solver steps
-    const speed = Math.max(1, Math.floor(this.params.collapseSpeed));
-    this.sim.step(
-      speed,
-      this.prng,
-      this.params.autoRestart,
-      this.params.restartDelay,
-      dt
-    );
+    // Run WFC solver steps with accumulator for frame-rate independence
+    this.stepAccumulator += dt * this.params.collapseSpeed * 60.0;
+    const substeps = Math.floor(this.stepAccumulator);
+    if (substeps > 0) {
+      this.stepAccumulator -= substeps;
+      this.sim.step(
+        substeps,
+        this.prng,
+        this.params.autoRestart,
+        this.params.restartDelay,
+        dt
+      );
+    } else {
+      this.sim.step(
+        0,
+        this.prng,
+        this.params.autoRestart,
+        this.params.restartDelay,
+        dt
+      );
+    }
 
     // Continuous dragging pointer interaction
     if (this.isPointerDown && this.pointerGridX >= 0 && this.pointerGridY >= 0) {

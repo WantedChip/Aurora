@@ -1052,8 +1052,9 @@ export class FluidRoom implements RoomInstance {
 
     const dtx = dt * w;
     const dty = dt * h;
-    const velDissip = this.params.velDissipation;
-    const dyeDissip = this.params.dissipation;
+    const dtScale = dt * 60.0;
+    const velDissip = Math.pow(Math.max(0.0001, this.params.velDissipation), dtScale);
+    const dyeDissip = Math.pow(Math.max(0.0001, this.params.dissipation), dtScale);
     const isWrap = this.params.wrapMode === 'wrap';
 
     for (let y = 0; y < h; y++) {

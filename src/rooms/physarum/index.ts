@@ -649,7 +649,7 @@ export class PhysarumRoom implements RoomInstance {
     this.stepPhysarumSimulation(dt * motionScale);
 
     // 2. Diffuse and Decay Chemical Trail Map
-    this.diffuseAndDecayTrailMap();
+    this.diffuseAndDecayTrailMap(dt * motionScale);
 
     // 3. Render Output Frame via WebGPU or Canvas2D
     if (this.backendMode === 'webgpu' && this.renderer && this.scene && this.camera && this.trailDataTexture) {
@@ -768,12 +768,12 @@ export class PhysarumRoom implements RoomInstance {
   /**
    * Applies 3x3 box blur convolution and exponential decay to the chemoattractant chemical field.
    */
-  private diffuseAndDecayTrailMap(): void {
+  private diffuseAndDecayTrailMap(dt = 0.016): void {
     const sw = this.simWidth;
     const sh = this.simHeight;
     const src = this.trailField;
     const dst = this.trailDiffuse;
-    const decay = this.params.decayRate;
+    const decay = Math.pow(this.params.decayRate, dt * 60.0);
     const diffuse = this.params.diffuseRate;
     const invDiffuse = 1.0 - diffuse;
 

@@ -934,10 +934,11 @@ export class ParticleLifeRoom implements RoomInstance {
         }
       }
 
-      // 5. Integrate velocity with friction damping
+      // 5. Integrate velocity with frame-rate independent friction damping
       const forceScale = forceMult * 18.0;
-      let nvx = (this.vx[i] + fx * forceScale * dtScale * 0.016) * (1.0 - friction);
-      let nvy = (this.vy[i] + fy * forceScale * dtScale * 0.016) * (1.0 - friction);
+      const frictionFactor = Math.pow(Math.max(1.0 - friction, 0.0001), dtScale);
+      let nvx = (this.vx[i] + fx * forceScale * dtScale * 0.016) * frictionFactor;
+      let nvy = (this.vy[i] + fy * forceScale * dtScale * 0.016) * frictionFactor;
 
       // Clamp max velocity
       const speedSq = nvx * nvx + nvy * nvy;

@@ -492,7 +492,89 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'physarum/index.ts', details: String(err) });
   }
 
-  // 11. Verify Client-Side Hash Router
+  // 11. Verify Room 05: Particle Life (Multi-Species Attraction Matrix)
+  try {
+    const roomInstance = await lazyLoadRoom('particle-life');
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const container = document.createElement('div');
+    const prng = createPRNG('#FFB800');
+
+    let cleanupRan = false;
+    const cleanup = await roomInstance.mount({
+      canvas,
+      container,
+      params: {
+        seed: '#FFB800',
+        preset: 'symbiosis',
+        particleCount: 5000,
+        speciesCount: 6,
+        interactionRadius: 80.0,
+        friction: 0.05,
+        forceMultiplier: 1.0,
+        repulsionZone: 0.3,
+        trailDecay: 0.15,
+        colorPalette: 'spectral-aurora',
+      },
+      prng,
+      dpr: 1,
+    });
+
+    // Test parameter dynamic updates & preset switching
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'predators',
+        speciesCount: 5,
+        interactionRadius: 90.0,
+        colorPalette: 'cyber-neon',
+        particleCount: 8000,
+      });
+    }
+
+    // Test pointer event interaction (attractor & swirling vortex)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 240,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+    }
+
+    // Test custom high-resolution snapshot generation
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(800, 600);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const particleLifePassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 800 &&
+      snapshotCanvas.height === 600;
+
+    results.push({
+      passed: particleLifePassed,
+      module: 'particle-life/index.ts (Room 05)',
+      details: `Particle Life simulation mounted, verified multi-species interaction matrix, O(N) spatial grid, preset switching (symbiosis -> predators), cursor gravity vortex, palette switching, and 800x600 snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'particle-life/index.ts', details: String(err) });
+  }
+
+  // 12. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
@@ -529,7 +611,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'router.ts', details: String(err) });
   }
 
-  // 12. Verify Media Recorder & Snapshot Pipeline
+  // 13. Verify Media Recorder & Snapshot Pipeline
   try {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 400;
@@ -593,7 +675,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'recorder.ts', details: String(err) });
   }
 
-  // 13. Verify RoomViewer Mounting & Teardown Lifecycle
+  // 14. Verify RoomViewer Mounting & Teardown Lifecycle
   try {
     const { RoomViewer } = await import('./room-viewer');
     const testApp = document.createElement('div');

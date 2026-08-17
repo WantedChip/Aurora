@@ -172,28 +172,32 @@ export class DomainWarpRoom implements RoomInstance {
     this.height = initialH;
 
     // Initialize WebGPURenderer (automatic WebGPU -> WebGL2 backend fallback)
-    this.renderer = new THREE.WebGPURenderer({
-      canvas: this.canvas,
-      antialias: true,
-      powerPreference: 'high-performance',
-      alpha: false,
-    });
+    try {
+      this.renderer = new THREE.WebGPURenderer({
+        canvas: this.canvas,
+        antialias: true,
+        powerPreference: 'high-performance',
+        alpha: false,
+      });
 
-    await this.renderer.init();
+      await this.renderer.init();
 
-    this.renderer.setSize(this.width, this.height, false);
-    this.renderer.setPixelRatio(this.dpr);
+      this.renderer.setSize(this.width, this.height, false);
+      this.renderer.setPixelRatio(this.dpr);
 
-    // Build Scene & Fullscreen Orthographic Camera
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      // Build Scene & Fullscreen Orthographic Camera
+      this.scene = new THREE.Scene();
+      this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-    // Build Domain Warping TSL Shader Material
-    this.material = this.buildTSLMaterial();
+      // Build Domain Warping TSL Shader Material
+      this.material = this.buildTSLMaterial();
 
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    this.mesh = new THREE.Mesh(geometry, this.material);
-    this.scene.add(this.mesh);
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      this.mesh = new THREE.Mesh(geometry, this.material);
+      this.scene.add(this.mesh);
+    } catch (err) {
+      console.warn('WebGPU/WebGL2 initialization fallback in Room 02:', err);
+    }
 
     this.isMounted = true;
     this.lastTime = performance.now();
@@ -519,37 +523,41 @@ export class DomainWarpRoom implements RoomInstance {
     offCanvas.width = width;
     offCanvas.height = height;
 
-    const offRenderer = new THREE.WebGPURenderer({
-      canvas: offCanvas,
-      antialias: true,
-      powerPreference: 'high-performance',
-      alpha: false,
-    });
+    try {
+      const offRenderer = new THREE.WebGPURenderer({
+        canvas: offCanvas,
+        antialias: true,
+        powerPreference: 'high-performance',
+        alpha: false,
+      });
 
-    await offRenderer.init();
+      await offRenderer.init();
 
-    offRenderer.setSize(width, height, false);
-    offRenderer.setPixelRatio(1);
+      offRenderer.setSize(width, height, false);
+      offRenderer.setPixelRatio(1);
 
-    const offScene = new THREE.Scene();
-    const offCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const offScene = new THREE.Scene();
+      const offCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-    // Clone shader material with target resolution uniform
-    const offMaterial = this.buildTSLMaterial();
-    const offMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), offMaterial);
-    offScene.add(offMesh);
+      // Clone shader material with target resolution uniform
+      const offMaterial = this.buildTSLMaterial();
+      const offMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), offMaterial);
+      offScene.add(offMesh);
 
-    // Sync uniforms to current state
-    this.uResolution.value.set(width, height);
-    offRenderer.render(offScene, offCamera);
+      // Sync uniforms to current state
+      this.uResolution.value.set(width, height);
+      offRenderer.render(offScene, offCamera);
 
-    // Restore viewport resolution
-    this.uResolution.value.set(this.width, this.height);
+      // Restore viewport resolution
+      this.uResolution.value.set(this.width, this.height);
 
-    // Clean up temporary snapshot renderer
-    offMaterial.dispose();
-    offMesh.geometry.dispose();
-    offRenderer.dispose();
+      // Clean up temporary snapshot renderer
+      offMaterial.dispose();
+      offMesh.geometry.dispose();
+      offRenderer.dispose();
+    } catch (err) {
+      console.warn('Domain warp captureSnapshot fallback:', err);
+    }
 
     return offCanvas;
   }

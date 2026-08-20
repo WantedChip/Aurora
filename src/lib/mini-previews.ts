@@ -320,6 +320,9 @@ export class MiniPreviewManager {
       case 'moire': {
         return { angle1: 0, angle2: 0, t: 0 };
       }
+      case 'tunnel-warp': {
+        return { warpPos: 0, rot: 0, t: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -1012,6 +1015,71 @@ export class MiniPreviewManager {
           ctx.lineTo(cx + ptrShiftX + Math.cos(a2) * maxR, cy + ptrShiftY + Math.sin(a2) * maxR);
           ctx.stroke();
         }
+
+        break;
+      }
+
+      case 'tunnel-warp': {
+        const speed = isHovered ? 4.5 : 2.0;
+        state.t += dt;
+        state.warpPos += dt * speed;
+        state.rot += dt * (isHovered ? 0.6 : 0.25);
+
+        ctx.fillStyle = '#090A0D';
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+        const maxR = Math.hypot(cx, cy);
+
+        const ptrShiftX = pointerX >= 0 ? (pointerX - cx) * 0.4 : Math.sin(state.t * 1.2) * 15;
+        const ptrShiftY = pointerY >= 0 ? (pointerY - cy) * 0.4 : Math.cos(state.t * 0.9) * 12;
+
+        const focalX = cx + ptrShiftX;
+        const focalY = cy + ptrShiftY;
+
+        // Concentric depth rings expanding outwards (wormhole warp)
+        const ringCount = 14;
+        const phase = state.warpPos % 1.0;
+
+        ctx.lineWidth = isHovered ? 1.8 : 1.2;
+        for (let i = 0; i < ringCount; i++) {
+          const frac = (i + phase) / ringCount;
+          const r = Math.pow(frac, 2.2) * maxR;
+          const alpha = Math.sin(frac * Math.PI) * (isHovered ? 0.9 : 0.7);
+
+          const bendX = Math.sin(frac * 4.0 - state.t * 2.0) * ptrShiftX * 0.5;
+          const bendY = Math.cos(frac * 3.5 - state.t * 2.0) * ptrShiftY * 0.5;
+
+          ctx.strokeStyle = i % 2 === 0
+            ? `rgba(0, 240, 255, ${alpha})`
+            : `rgba(255, 42, 109, ${alpha * 0.85})`;
+
+          ctx.beginPath();
+          ctx.ellipse(focalX + bendX, focalY + bendY, r, r * 0.85, state.rot * 0.5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Longitudinal laser beams rushing from focal center to edges
+        const beamCount = 12;
+        ctx.strokeStyle = 'rgba(0, 255, 157, 0.45)';
+        ctx.lineWidth = 1.0;
+        for (let i = 0; i < beamCount; i++) {
+          const a = state.rot + (i / beamCount) * Math.PI * 2;
+          const endX = focalX + Math.cos(a) * maxR * 1.5;
+          const endY = focalY + Math.sin(a) * maxR * 1.5;
+
+          ctx.beginPath();
+          ctx.moveTo(focalX, focalY);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+        }
+
+        // Singularity void core
+        ctx.fillStyle = '#090A0D';
+        ctx.beginPath();
+        ctx.arc(focalX, focalY, 10, 0, Math.PI * 2);
+        ctx.fill();
 
         break;
       }

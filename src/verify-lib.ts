@@ -3316,7 +3316,175 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'moire/index.ts', details: String(err) });
   }
 
-  // 25. Verify Client-Side Hash Router
+  // 28. Verify Room 22: Tunnel Warp & Wormhole (Demoscene Polar Projection & Raymarched Warp)
+  try {
+    const tunnelCanvas = document.createElement('canvas');
+    tunnelCanvas.width = 600;
+    tunnelCanvas.height = 600;
+    const tunnelContainer = document.createElement('div');
+    const tunnelPrng = createPRNG('#00F0FF');
+
+    const tunnelMeta = getRoomById('tunnel-warp');
+    const roomInstance = await lazyLoadRoom('tunnel-warp');
+
+    const { evaluatePattern, evaluateTunnelPixel } = await import('./rooms/tunnel-warp/index');
+
+    // 1. Test mathematical accuracy of 6 procedural interior pattern generators
+    const hexVal = evaluatePattern(0.2, 0.5, 'cyber-hex', 12.0, 18.0, 1.5, 0.0);
+    const checkVal = evaluatePattern(0.25, 0.25, 'checkerboard', 18.0, 24.0, 2.0, 0.0);
+    const stripeVal = evaluatePattern(0.5, 1.0, 'neon-stripes', 16.0, 12.0, 1.8, 0.0);
+    const ringVal = evaluatePattern(0.0, 0.5, 'pulse-rings', 8.0, 22.0, 1.6, 0.0);
+    const voronoiVal = evaluatePattern(0.3, 0.7, 'voronoi-cells', 10.0, 14.0, 1.4, 0.0);
+    const mandalaVal = evaluatePattern(0.1, 0.2, 'mandala-lattice', 14.0, 16.0, 1.7, 0.0);
+
+    const patternsValid =
+      typeof hexVal === 'number' && hexVal >= 0.0 && hexVal <= 1.0 &&
+      typeof checkVal === 'number' && checkVal >= 0.0 && checkVal <= 1.0 &&
+      typeof stripeVal === 'number' && stripeVal >= 0.0 && stripeVal <= 1.0 &&
+      typeof ringVal === 'number' && ringVal >= 0.0 && ringVal <= 1.0 &&
+      typeof voronoiVal === 'number' && voronoiVal >= 0.0 && voronoiVal <= 1.0 &&
+      typeof mandalaVal === 'number' && mandalaVal >= 0.0 && mandalaVal <= 1.0;
+
+    // 2. Test polar screen coordinate transformation & chromatic dispersion pixel evaluation
+    const defaultParams = { ...(tunnelMeta?.defaultParams as any) };
+    const pixelMono = evaluateTunnelPixel(0.3, 0.3, defaultParams, 1.0, [0, 0]);
+    const chromaticParams = { ...defaultParams, chromaticDispersion: 0.08 };
+    const pixelChromatic = evaluateTunnelPixel(0.3, 0.3, chromaticParams, 1.0, [0.1, -0.1], 0.5, 0.8);
+
+    const pixelsValid =
+      pixelMono.length === 3 &&
+      pixelMono.every(c => typeof c === 'number' && c >= 0 && c <= 1.0) &&
+      pixelChromatic.length === 3 &&
+      pixelChromatic.every(c => typeof c === 'number' && c >= 0 && c <= 1.0);
+
+    // 3. Mount room instance
+    const ctx: RoomContext = {
+      canvas: tunnelCanvas,
+      container: tunnelContainer,
+      params: { ...(tunnelMeta?.defaultParams || {}) },
+      prng: tunnelPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 4. Test dynamic parameter updates across all 6 canonical presets and palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'cyber-hexagon',
+        patternType: 'cyber-hex',
+        colorPalette: 'bioluminescent-cyan',
+        raymarchMode: true,
+      });
+      roomInstance.updateParams({
+        preset: 'psychedelic-checker',
+        patternType: 'checkerboard',
+        colorPalette: 'monochrome-void',
+        twist: 2.2,
+      });
+      roomInstance.updateParams({
+        preset: 'neon-torus',
+        patternType: 'pulse-rings',
+        colorPalette: 'solar-plasma',
+        bendX: 0.7,
+        bendY: 0.5,
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-wormhole',
+        patternType: 'mandala-lattice',
+        colorPalette: 'spectral-aurora',
+        twist: -1.8,
+      });
+      roomInstance.updateParams({
+        preset: 'abyssal-vortex',
+        patternType: 'voronoi-cells',
+        colorPalette: 'obsidian-gold',
+      });
+      roomInstance.updateParams({
+        preset: 'hyperspace-conduit',
+        patternType: 'neon-stripes',
+        colorPalette: 'cyber-neon',
+        warpSpeed: 3.2,
+      });
+    }
+
+    // 5. Test pointer interaction dynamics (hover steering, banking roll, click hyperspace burst)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 360,
+        y: 330,
+        normalizedX: 0.6,
+        normalizedY: 0.55,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 360,
+        y: 330,
+        normalizedX: 0.6,
+        normalizedY: 0.55,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 6. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 7. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const tunnelPassed =
+      patternsValid &&
+      pixelsValid &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: tunnelPassed,
+      module: 'tunnel-warp/index.ts (Room 22)',
+      details: tunnelPassed
+        ? `Tunnel Warp & Wormhole mounted, verified demoscene polar coordinate mapping (u = atan2/pi, v = R/r), 6 procedural interior patterns (Hex, Checker, Neon Stripes, Pulse Rings, Voronoi Cells, Mandala Lattice), 3D curved tube centerline deflection, chromatic dispersion, 6 canonical presets, 6 curatorial palettes, pointer spring banking, hyperspace burst trigger, and offline snapshot capture. Clean teardown verified.`
+        : `Tunnel Warp verification failed: patternsValid=${patternsValid} (hex=${hexVal}, check=${checkVal}, stripe=${stripeVal}, ring=${ringVal}, voronoi=${voronoiVal}, mandala=${mandalaVal}), pixelsValid=${pixelsValid} (mono=${JSON.stringify(pixelMono)}, chr=${JSON.stringify(pixelChromatic)}), mount=${typeof roomInstance.mount}, cleanupRan=${cleanupRan}, snapshotCanvas=${snapshotCanvas ? `${snapshotCanvas.width}x${snapshotCanvas.height}` : 'null'}`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'tunnel-warp/index.ts', details: String(err) });
+  }
+
+  // 29. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;

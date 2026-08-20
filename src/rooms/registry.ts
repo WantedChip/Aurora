@@ -1860,6 +1860,143 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'trebleReaction', label: 'Treble Reaction (Shimmer)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 22
+  {
+    id: 'tunnel-warp',
+    index: 22,
+    indexDisplay: '#22',
+    name: 'Tunnel Warp & Wormhole',
+    category: 'psychedelic',
+    categoryName: 'Psychedelic & Optical',
+    backend: 'tsl-shader',
+    backendDisplay: 'THREE.JS / TSL',
+    mathModel: 'Relativistic Polar Coordinate Projection, Curved Tube Geometry & Multi-Pattern Procedural Interiors',
+    description: 'Infinite relativistic wormhole flight, non-linear domain warping, and curved tube demoscene polar projection.',
+    curatorialNote: 'Explores classical demoscene polar projection mappings (u = atan2/pi + wt, v = R/r + vz*t) augmented with 3D curved centerline deflection, procedural hexagonal/checker/voronoi lattices, chromatic aberration, and audio-reactive warp speed bursts.',
+    tags: ['tunnel', 'wormhole', 'warp-speed', 'polar-projection', 'demoscene', 'raymarch', 'chromatic-aberration', 'audio-reactive', 'tsl', 'shader'],
+    moods: ['hypnotic', 'relativistic', 'cosmic', 'futuristic', 'kinetic', 'immersive'],
+    defaultParams: {
+      seed: '#00F0FF',
+      preset: 'hyperspace-conduit',
+      patternType: 'neon-stripes',
+      colorPalette: 'cyber-neon',
+      warpSpeed: 2.5,
+      rotationSpeed: 0.25,
+      tunnelRadius: 1.0,
+      twist: 0.8,
+      relativisticFov: 1.0,
+      bendX: 0.35,
+      bendY: 0.25,
+      bendFreq: 0.8,
+      curveSpeed: 0.8,
+      raymarchMode: false,
+      radialDensity: 16.0,
+      longitudinalDensity: 14.0,
+      patternSharpness: 1.5,
+      glowIntensity: 1.6,
+      contrast: 1.35,
+      brightness: 0.0,
+      chromaticDispersion: 0.06,
+      fogDensity: 1.1,
+      fogFalloff: 1.8,
+      pointerInfluence: 1.2,
+      pointerInertia: 10.0,
+      pointerBanking: 0.8,
+      hyperspaceBurst: false,
+      audioSource: 'synth',
+      audioSensitivity: 1.0,
+      bassReaction: 1.3,
+      midReaction: 1.0,
+      trebleReaction: 1.4,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Warp Preset',
+        type: 'select',
+        options: [
+          { label: 'Hyperspace Conduit (Laser Beams)', value: 'hyperspace-conduit' },
+          { label: 'Cyber Hexagon (Glowing Grid)', value: 'cyber-hexagon' },
+          { label: 'Psychedelic Checker (Twisted Tile)', value: 'psychedelic-checker' },
+          { label: 'Neon Torus (Shockwave Rings)', value: 'neon-torus' },
+          { label: 'Quantum Wormhole (Mandala Rosette)', value: 'quantum-wormhole' },
+          { label: 'Abyssal Vortex (Voronoi Cellular)', value: 'abyssal-vortex' },
+        ],
+        folder: 'Warp Dynamics & Speed',
+      },
+      { key: 'warpSpeed', label: 'Warp Speed (v_z)', type: 'slider', min: 0.2, max: 6.0, step: 0.1, folder: 'Warp Dynamics & Speed' },
+      { key: 'rotationSpeed', label: 'Rotation Rate (ω)', type: 'slider', min: -3.0, max: 3.0, step: 0.05, folder: 'Warp Dynamics & Speed' },
+      { key: 'tunnelRadius', label: 'Tunnel Radius (R)', type: 'slider', min: 0.2, max: 2.5, step: 0.05, folder: 'Warp Dynamics & Speed' },
+      { key: 'twist', label: 'Spiral Twist Factor', type: 'slider', min: -4.0, max: 4.0, step: 0.1, folder: 'Warp Dynamics & Speed' },
+      { key: 'relativisticFov', label: 'Relativistic FOV Compression', type: 'slider', min: 0.5, max: 3.0, step: 0.05, folder: 'Warp Dynamics & Speed' },
+
+      {
+        key: 'patternType',
+        label: 'Interior Texture',
+        type: 'select',
+        options: [
+          { label: 'Bioluminescent Neon Stripes', value: 'neon-stripes' },
+          { label: 'Cybernetic Hexagonal Grid', value: 'cyber-hex' },
+          { label: 'Psychedelic Infinite Checker', value: 'checkerboard' },
+          { label: 'Concentric Pulse Rings', value: 'pulse-rings' },
+          { label: 'Voronoi Cellular Bio-Tunnel', value: 'voronoi-cells' },
+          { label: 'Geometric Mandala Lattice', value: 'mandala-lattice' },
+        ],
+        folder: 'Tunnel Geometry & Curvature',
+      },
+      { key: 'bendX', label: 'Curvature Bend X', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Tunnel Geometry & Curvature' },
+      { key: 'bendY', label: 'Curvature Bend Y', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Tunnel Geometry & Curvature' },
+      { key: 'bendFreq', label: 'Curvature Frequency', type: 'slider', min: 0.2, max: 5.0, step: 0.1, folder: 'Tunnel Geometry & Curvature' },
+      { key: 'curveSpeed', label: 'Undulation Speed', type: 'slider', min: 0.0, max: 3.0, step: 0.05, folder: 'Tunnel Geometry & Curvature' },
+      { key: 'raymarchMode', label: 'Raymarch Tube Lighting', type: 'boolean', folder: 'Tunnel Geometry & Curvature' },
+
+      { key: 'radialDensity', label: 'Radial Density (Sectors)', type: 'slider', min: 2.0, max: 32.0, step: 1.0, folder: 'Pattern Styling & Density' },
+      { key: 'longitudinalDensity', label: 'Longitudinal Frequency', type: 'slider', min: 2.0, max: 40.0, step: 1.0, folder: 'Pattern Styling & Density' },
+      { key: 'patternSharpness', label: 'Pattern Sharpness', type: 'slider', min: 0.2, max: 4.0, step: 0.1, folder: 'Pattern Styling & Density' },
+      { key: 'glowIntensity', label: 'Neon Glow Power', type: 'slider', min: 0.2, max: 3.0, step: 0.1, folder: 'Pattern Styling & Density' },
+
+      {
+        key: 'colorPalette',
+        label: 'Curatorial Palette',
+        type: 'select',
+        options: [
+          { label: 'Cyber Neon (Cyan / Magenta)', value: 'cyber-neon' },
+          { label: 'Spectral Aurora (Violet / Mint)', value: 'spectral-aurora' },
+          { label: 'Solar Plasma (Amber / Flare)', value: 'solar-plasma' },
+          { label: 'Obsidian Gold (Bronze / Basalt)', value: 'obsidian-gold' },
+          { label: 'Bioluminescent Cyan (Abyssal)', value: 'bioluminescent-cyan' },
+          { label: 'Monochrome Void (Archival Slate)', value: 'monochrome-void' },
+        ],
+        folder: 'Color, Dispersion & Fog',
+      },
+      { key: 'chromaticDispersion', label: 'Chromatic Dispersion (Δλ)', type: 'slider', min: 0.0, max: 0.2, step: 0.005, folder: 'Color, Dispersion & Fog' },
+      { key: 'fogDensity', label: 'Atmospheric Fog Density', type: 'slider', min: 0.1, max: 3.0, step: 0.05, folder: 'Color, Dispersion & Fog' },
+      { key: 'fogFalloff', label: 'Fog Non-Linear Falloff', type: 'slider', min: 0.5, max: 4.0, step: 0.1, folder: 'Color, Dispersion & Fog' },
+      { key: 'contrast', label: 'Visual Contrast', type: 'slider', min: 0.5, max: 2.5, step: 0.05, folder: 'Color, Dispersion & Fog' },
+      { key: 'brightness', label: 'Exposure Bias', type: 'slider', min: -0.5, max: 0.5, step: 0.02, folder: 'Color, Dispersion & Fog' },
+
+      { key: 'pointerInfluence', label: 'Cursor Singularity Shift', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Pointer & Camera Dynamics' },
+      { key: 'pointerInertia', label: 'Spring Inertia Damping', type: 'slider', min: 2.0, max: 25.0, step: 1.0, folder: 'Pointer & Camera Dynamics' },
+      { key: 'pointerBanking', label: 'Camera Roll Banking', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Pointer & Camera Dynamics' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'bassReaction', label: 'Bass Reaction (Warp Speed)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'midReaction', label: 'Mid Reaction (Curvature)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'trebleReaction', label: 'Treble Reaction (Dispersion)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -2030,6 +2167,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'moire':
         modulePromise = import('./moire/index');
+        break;
+      case 'tunnel-warp':
+        modulePromise = import('./tunnel-warp/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

@@ -305,6 +305,18 @@ export class MiniPreviewManager {
       case 'plasma': {
         return { t: 0, phase: 0 };
       }
+      case 'cymatics': {
+        const particles: { x: number; y: number; vx: number; vy: number }[] = [];
+        for (let i = 0; i < 220; i++) {
+          particles.push({
+            x: prng.nextFloat(-0.9, 0.9),
+            y: prng.nextFloat(-0.9, 0.9),
+            vx: 0,
+            vy: 0,
+          });
+        }
+        return { particles, t: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -861,6 +873,83 @@ export class MiniPreviewManager {
           }
         }
         ctx.putImageData(imgData, 0, 0);
+        break;
+      }
+
+      case 'cymatics': {
+        state.t += dt * (isHovered ? 2.0 : 1.0);
+        ctx.fillStyle = 'rgba(9, 10, 13, 0.28)';
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+        const scale = Math.min(w, h) * 0.44;
+
+        // Draw subtle plate boundary
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+        ctx.lineWidth = 1.0;
+        ctx.strokeRect(cx - scale, cy - scale, scale * 2, scale * 2);
+
+        const n = isHovered ? 4 : 3;
+        const m = isHovered ? 4 : 3;
+        const ptrNormX = pointerX >= 0 ? (pointerX - cx) / scale : -999;
+        const ptrNormY = pointerY >= 0 ? (pointerY - cy) / scale : -999;
+
+        for (let i = 0; i < state.particles.length; i++) {
+          const p = state.particles[i];
+          const kx1 = 0.5 * n * Math.PI;
+          const ky1 = 0.5 * m * Math.PI;
+
+          const cosNX = Math.cos(kx1 * p.x);
+          const sinNX = Math.sin(kx1 * p.x);
+          const cosMY = Math.cos(ky1 * p.y);
+          const sinMY = Math.sin(ky1 * p.y);
+          const cosMX = Math.cos(ky1 * p.x);
+          const sinMX = Math.sin(ky1 * p.x);
+          const cosNY = Math.cos(kx1 * p.y);
+          const sinNY = Math.sin(kx1 * p.y);
+
+          const wVal = cosNX * cosMY - cosMX * cosNY;
+          const gradX = -kx1 * sinNX * cosMY + ky1 * sinMX * cosNY;
+          const gradY = -ky1 * cosNX * sinMY + kx1 * cosMX * sinNY;
+
+          const signW = wVal >= 0 ? 1 : -1;
+          const fxDrift = -signW * gradX * 3.5;
+          const fyDrift = -signW * gradY * 3.5;
+
+          const amp = Math.abs(wVal);
+          const randAngle = i * 2.4 + state.t * 8.0;
+          const fxAgitation = Math.cos(randAngle) * amp * 2.2;
+          const fyAgitation = Math.sin(randAngle) * amp * 2.2;
+
+          p.vx = (p.vx + (fxDrift + fxAgitation) * dt) * 0.92;
+          p.vy = (p.vy + (fyDrift + fyAgitation) * dt) * 0.92;
+
+          // Pointer interaction
+          if (ptrNormX > -2) {
+            const dx = p.x - ptrNormX;
+            const dy = p.y - ptrNormY;
+            const d = Math.sqrt(dx * dx + dy * dy + 0.001);
+            if (d < 0.4) {
+              p.vx += (dx / d) * 3.0 * (1.0 - d / 0.4);
+              p.vy += (dy / d) * 3.0 * (1.0 - d / 0.4);
+            }
+          }
+
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+
+          if (p.x > 0.95) { p.x = 0.95; p.vx *= -0.5; }
+          if (p.x < -0.95) { p.x = -0.95; p.vx *= -0.5; }
+          if (p.y > 0.95) { p.y = 0.95; p.vy *= -0.5; }
+          if (p.y < -0.95) { p.y = -0.95; p.vy *= -0.5; }
+
+          const scrX = cx + p.x * scale;
+          const scrY = cy + p.y * scale;
+
+          ctx.fillStyle = amp < 0.25 ? '#D4AF37' : '#FFF5CC';
+          ctx.fillRect(scrX - 1, scrY - 1, 2, 2);
+        }
         break;
       }
 

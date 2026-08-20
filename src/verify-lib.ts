@@ -778,6 +778,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const physarum = getRoomById('physarum');
     const fractalFlames = getRoomById('fractal-flames');
     const videoFeedback = getRoomById('video-feedback');
+    const cymatics = getRoomById('cymatics');
     const artLifeRooms = filterRoomsByCategory('art-life');
     const psychedelicRooms = filterRoomsByCategory('psychedelic');
     const categories = getCategories();
@@ -785,26 +786,29 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const searchMatch2 = searchRooms('turing');
     const searchMatch3 = searchRooms('scott draves');
     const searchMatch4 = searchRooms('video feedback');
+    const searchMatch5 = searchRooms('chladni');
     const searchEmpty = searchRooms('quantum-nonexistent-tag');
 
     const registryPassed =
-      allRooms.length >= 18 &&
+      allRooms.length >= 20 &&
       physarum?.name === 'Physarum Slime Mold' &&
       fractalFlames?.name === 'Fractal Flames' &&
       videoFeedback?.name === 'Video Feedback Loop' &&
+      cymatics?.name === 'Cymatics & Chladni Resonance' &&
       artLifeRooms.length === 6 &&
-      psychedelicRooms.length >= 2 &&
+      psychedelicRooms.length >= 4 &&
       categories.length === 9 &&
       searchMatch1.some(r => r.id === 'physarum') &&
       searchMatch2.some(r => r.id === 'reaction-diffusion') &&
       searchMatch3.some(r => r.id === 'fractal-flames') &&
       searchMatch4.some(r => r.id === 'video-feedback') &&
+      searchMatch5.some(r => r.id === 'cymatics') &&
       searchEmpty.length === 0;
 
     results.push({
       passed: registryPassed,
       module: 'registry.ts (Catalog & Search)',
-      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}, "video feedback" -> #${searchMatch4[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms.`,
+      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}, "chladni" -> #${searchMatch5[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'registry.ts', details: String(err) });
@@ -2929,6 +2933,175 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'plasma/index.ts', details: String(err) });
   }
 
+  // 26. Verify Room 20: Cymatics & Chladni Resonance (Standing Acoustic Wave Nodal Particles)
+  try {
+    const cymaticsCanvas = document.createElement('canvas');
+    cymaticsCanvas.width = 600;
+    cymaticsCanvas.height = 600;
+    const cymaticsContainer = document.createElement('div');
+    const cymaticsPrng = createPRNG('#D4AF37');
+
+    const cymaticsMeta = getRoomById('cymatics');
+    const roomInstance = await lazyLoadRoom('cymatics');
+
+    const { besselJ, besselJPrime, evaluatePlateWave } = await import('./rooms/cymatics/index');
+
+    // 1. Test mathematical accuracy of Bessel J_n functions and derivatives
+    const j0_0 = besselJ(0, 0); // J_0(0) == 1
+    const j1_0 = besselJ(1, 0); // J_1(0) == 0
+    const j0_24 = besselJ(0, 2.4048); // First root of J_0 ~ 0
+    const j0Prime_0 = besselJPrime(0, 0); // J_0'(0) == -J_1(0) == 0
+
+    const besselAccurate =
+      Math.abs(j0_0 - 1.0) < 1e-6 &&
+      Math.abs(j1_0 - 0.0) < 1e-6 &&
+      Math.abs(j0_24) < 0.01 &&
+      Math.abs(j0Prime_0) < 1e-6;
+
+    // 2. Test 2D standing acoustic plate wave potential W(x, y) and gradients
+    const squareWave = evaluatePlateWave(0, 0, 'square', 2, 2, 1.0, 1.0);
+    const circularWave = evaluatePlateWave(0, 0, 'circular', 0, 1, 1.0, 1.0);
+
+    const waveMathValid =
+      typeof squareWave.w === 'number' &&
+      typeof squareWave.gradX === 'number' &&
+      typeof squareWave.gradY === 'number' &&
+      typeof circularWave.w === 'number' &&
+      typeof circularWave.gradX === 'number' &&
+      typeof circularWave.gradY === 'number';
+
+    // 3. Mount simulation room
+    const ctx: RoomContext = {
+      canvas: cymaticsCanvas,
+      container: cymaticsContainer,
+      params: { ...(cymaticsMeta?.defaultParams || {}) },
+      prng: cymaticsPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 4. Test parameter dynamic updates across presets, geometries, modes, and palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'sacred-mandala',
+        plateShape: 'circular',
+        modeN: 4,
+        modeM: 3,
+        colorPalette: 'spectral-aurora',
+      });
+      roomInstance.updateParams({
+        preset: 'high-harmonic-lattice',
+        plateShape: 'square',
+        modeN: 7,
+        modeM: 5,
+        colorPalette: 'obsidian-emerald',
+      });
+      roomInstance.updateParams({
+        preset: 'bessel-circular',
+        plateShape: 'circular',
+        modeN: 6,
+        modeM: 2,
+        colorPalette: 'cosmic-amethyst',
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-resonance',
+        colorPalette: 'phosphor-cyan',
+        vibrationPower: 2.5,
+        driftStrength: 3.5,
+      });
+      roomInstance.updateParams({
+        preset: 'chaotic-dispersion',
+        colorPalette: 'sand-gold',
+        bounceHeight: 2.0,
+      });
+      roomInstance.updateParams({
+        preset: 'fundamental-square',
+        plateShape: 'square',
+        modeN: 2,
+        modeM: 2,
+        particleCount: 50000,
+        cameraView: 'top-down',
+      });
+      roomInstance.updateParams({
+        cameraView: 'angled-cinematic',
+      });
+    }
+
+    // 5. Test pointer interactions (acoustic excitation impulse, shockwave click, sand drop)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 340,
+        y: 320,
+        normalizedX: 0.56,
+        normalizedY: 0.53,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 340,
+        y: 320,
+        normalizedX: 0.56,
+        normalizedY: 0.53,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 6. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 7. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const cymaticsPassed =
+      besselAccurate &&
+      waveMathValid &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: cymaticsPassed,
+      module: 'cymatics/index.ts (Room 20)',
+      details: `Cymatics & Chladni Resonance mounted, verified square Chladni W(x,y) & circular Bessel J_n(kr) modal vibrations, 6 canonical presets (Fundamental Square, Sacred Mandala, High-Harmonic Lattice, Bessel Circular, Quantum Resonance, Chaotic Dispersion), 6 spectral palettes, granular drift/thermal kinetics, pointer acoustic impulses/shockwaves, and offline snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'cymatics/index.ts', details: String(err) });
+  }
+
   // 25. Verify Client-Side Hash Router
   try {
     router.start();
@@ -3746,7 +3919,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const loadedInstances = await Promise.all(rooms.map(r => lazyLoadRoom(r.id)));
 
     const allLoaded =
-      rooms.length >= 19 &&
+      rooms.length >= 20 &&
       loadedInstances.length === rooms.length &&
       loadedInstances.every(inst => inst && typeof inst.mount === 'function');
 

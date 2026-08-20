@@ -1568,6 +1568,141 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'trebleReaction', label: 'Treble Reaction', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 20
+  {
+    id: 'cymatics',
+    index: 20,
+    indexDisplay: '#20',
+    name: 'Cymatics & Chladni Resonance',
+    category: 'psychedelic',
+    categoryName: 'Psychedelic & Optical',
+    backend: 'tsl-shader',
+    backendDisplay: 'THREE.JS / SHADER',
+    mathModel: '2D Standing Acoustic Plate Wave Potential & Bessel Modal Eigenfunctions',
+    description: 'Dynamic acoustic standing wave nodal particles on vibrating square and circular Chladni plates.',
+    curatorialNote: 'Visualizes Ernst Chladni and Hans Jenny cymatic resonance, guiding 50,000+ granular sand particles into intricate geometric nodal curves driven by acoustic frequency spectra.',
+    tags: ['cymatics', 'chladni', 'acoustics', 'standing-waves', 'resonance', 'particles', 'bessel', 'sound'],
+    moods: ['hypnotic', 'sacred', 'meditative', 'geometric', 'resonant'],
+    defaultParams: {
+      seed: '#D4AF37',
+      preset: 'fundamental-square',
+      plateShape: 'square',
+      modeN: 2,
+      modeM: 2,
+      paramA: 1.0,
+      paramB: 1.0,
+      frequency: 432,
+      particleCount: 50000,
+      vibrationPower: 1.8,
+      driftStrength: 2.8,
+      friction: 0.05,
+      bounceHeight: 1.2,
+      gravity: 9.8,
+      colorPalette: 'sand-gold',
+      particleSize: 1.6,
+      sparkGlow: 1.2,
+      plateOpacity: 0.85,
+      cameraView: 'isometric-3d',
+      cameraAutoRotate: false,
+      rotationSpeed: 0.3,
+      pointerImpulse: 2.0,
+      shockwavePower: 2.5,
+      sandDropRate: 200,
+      audioSource: 'synth',
+      audioSensitivity: 1.0,
+      bassReaction: 1.2,
+      trebleReaction: 1.0,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Acoustic Preset',
+        type: 'select',
+        options: [
+          { label: 'Fundamental Square (Chladni Cross)', value: 'fundamental-square' },
+          { label: 'Sacred Mandala (8-Fold Radial Flower)', value: 'sacred-mandala' },
+          { label: 'High-Harmonic Lattice (Matrix)', value: 'high-harmonic-lattice' },
+          { label: 'Bessel Circular (Starburst)', value: 'bessel-circular' },
+          { label: 'Quantum Resonance (Asymmetric)', value: 'quantum-resonance' },
+          { label: 'Chaotic Dispersion (Storm)', value: 'chaotic-dispersion' },
+        ],
+        folder: 'Modal Vibration & Geometry',
+      },
+      {
+        key: 'plateShape',
+        label: 'Plate Geometry',
+        type: 'select',
+        options: [
+          { label: 'Square Plate (Chladni W)', value: 'square' },
+          { label: 'Circular Plate (Bessel Jn)', value: 'circular' },
+        ],
+        folder: 'Modal Vibration & Geometry',
+      },
+      { key: 'modeN', label: 'Harmonic Mode (n)', type: 'slider', min: 1, max: 12, step: 1, folder: 'Modal Vibration & Geometry' },
+      { key: 'modeM', label: 'Harmonic Mode (m)', type: 'slider', min: 1, max: 12, step: 1, folder: 'Modal Vibration & Geometry' },
+      { key: 'paramA', label: 'Mode Weight A', type: 'slider', min: 0.1, max: 3.0, step: 0.1, folder: 'Modal Vibration & Geometry' },
+      { key: 'paramB', label: 'Mode Weight B', type: 'slider', min: 0.1, max: 3.0, step: 0.1, folder: 'Modal Vibration & Geometry' },
+      { key: 'frequency', label: 'Oscillation Freq (Hz)', type: 'slider', min: 50, max: 2000, step: 10, folder: 'Modal Vibration & Geometry' },
+
+      { key: 'particleCount', label: 'Sand Particle Count', type: 'slider', min: 10000, max: 100000, step: 5000, folder: 'Granular Physics' },
+      { key: 'vibrationPower', label: 'Vibration Power', type: 'slider', min: 0.2, max: 5.0, step: 0.1, folder: 'Granular Physics' },
+      { key: 'driftStrength', label: 'Nodal Drift Force', type: 'slider', min: 0.5, max: 6.0, step: 0.1, folder: 'Granular Physics' },
+      { key: 'friction', label: 'Plate Friction', type: 'slider', min: 0.01, max: 0.20, step: 0.01, folder: 'Granular Physics' },
+      { key: 'bounceHeight', label: '3D Bounce Height', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Granular Physics' },
+      { key: 'gravity', label: 'Gravity Acceleration', type: 'slider', min: 2.0, max: 20.0, step: 0.5, folder: 'Granular Physics' },
+
+      {
+        key: 'colorPalette',
+        label: 'Color Palette',
+        type: 'select',
+        options: [
+          { label: 'Sand Gold (Natural Quartz)', value: 'sand-gold' },
+          { label: 'Spectral Aurora', value: 'spectral-aurora' },
+          { label: 'Obsidian Emerald', value: 'obsidian-emerald' },
+          { label: 'Cosmic Amethyst', value: 'cosmic-amethyst' },
+          { label: 'Phosphor Cyan', value: 'phosphor-cyan' },
+          { label: 'Monochrome Salt (NaCl)', value: 'monochrome-salt' },
+        ],
+        folder: 'Aesthetics & Viewport',
+      },
+      { key: 'particleSize', label: 'Grain Size', type: 'slider', min: 0.5, max: 4.0, step: 0.1, folder: 'Aesthetics & Viewport' },
+      { key: 'sparkGlow', label: 'Friction Spark Luminescence', type: 'slider', min: 0.2, max: 3.0, step: 0.1, folder: 'Aesthetics & Viewport' },
+      { key: 'plateOpacity', label: 'Plate Opacity', type: 'slider', min: 0.0, max: 1.0, step: 0.05, folder: 'Aesthetics & Viewport' },
+      {
+        key: 'cameraView',
+        label: 'Camera Perspective',
+        type: 'select',
+        options: [
+          { label: 'Isometric 3D', value: 'isometric-3d' },
+          { label: 'Top-Down 2D', value: 'top-down' },
+          { label: 'Angled Cinematic', value: 'angled-cinematic' },
+        ],
+        folder: 'Aesthetics & Viewport',
+      },
+      { key: 'cameraAutoRotate', label: 'Auto Rotate Viewport', type: 'boolean', folder: 'Aesthetics & Viewport' },
+      { key: 'rotationSpeed', label: 'Rotation Speed', type: 'slider', min: 0.05, max: 2.0, step: 0.05, folder: 'Aesthetics & Viewport' },
+
+      { key: 'pointerImpulse', label: 'Cursor Disturbance', type: 'slider', min: 0.0, max: 5.0, step: 0.1, folder: 'Pointer Dynamics' },
+      { key: 'shockwavePower', label: 'Click Shockwave Power', type: 'slider', min: 0.0, max: 5.0, step: 0.1, folder: 'Pointer Dynamics' },
+      { key: 'sandDropRate', label: 'Sand Cluster Drop Rate', type: 'slider', min: 50, max: 800, step: 50, folder: 'Pointer Dynamics' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'bassReaction', label: 'Bass Reaction (Modes)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'trebleReaction', label: 'Treble Reaction (Harmonics)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -1732,6 +1867,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'plasma':
         modulePromise = import('./plasma/index');
+        break;
+      case 'cymatics':
+        modulePromise = import('./cymatics/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

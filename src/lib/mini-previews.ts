@@ -299,6 +299,9 @@ export class MiniPreviewManager {
         }
         return { points, rot: 0 };
       }
+      case 'video-feedback': {
+        return { rot: 0, zoomPhase: 0, rings: 7 };
+      }
       default:
         return { t: 0 };
     }
@@ -764,6 +767,34 @@ export class MiniPreviewManager {
 
           ctx.fillStyle = i % 2 === 0 ? '#00F0FF' : '#FF2A6D';
           ctx.fillRect(px, py, 1.5, 1.5);
+        }
+        break;
+      }
+
+      case 'video-feedback': {
+        state.rot += dt * (isHovered ? 1.6 : 0.6);
+        state.zoomPhase += dt * (isHovered ? 2.0 : 0.8);
+        ctx.fillStyle = 'rgba(9, 10, 13, 0.22)';
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w / 2 + (pointerX >= 0 ? (pointerX - w / 2) * 0.15 : 0);
+        const cy = h / 2 + (pointerY >= 0 ? (pointerY - h / 2) * 0.15 : 0);
+        const count = 10;
+        const maxR = Math.min(w, h) * 0.46;
+
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < count; i++) {
+          const progress = ((i / count) + (state.zoomPhase * 0.15)) % 1.0;
+          const r = progress * maxR + 3;
+          const angle = state.rot + i * 0.25;
+          const alpha = Math.sin(progress * Math.PI);
+
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle);
+          ctx.strokeStyle = i % 2 === 0 ? `rgba(0, 240, 255, ${alpha * 0.85})` : `rgba(168, 85, 247, ${alpha * 0.85})`;
+          ctx.strokeRect(-r, -r, r * 2, r * 2);
+          ctx.restore();
         }
         break;
       }

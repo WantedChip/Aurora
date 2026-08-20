@@ -1337,6 +1337,131 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 18
+  {
+    id: 'video-feedback',
+    index: 18,
+    indexDisplay: '#18',
+    name: 'Video Feedback Loop',
+    category: 'psychedelic',
+    categoryName: 'Psychedelic & Optical',
+    backend: 'webgl2',
+    backendDisplay: 'WEBGL2 / FBO',
+    mathModel: 'Multi-Pass Ping-Pong Framebuffer Feedback & Optical Aberration',
+    description: 'Analog cathode-ray video feedback loop simulated via ping-pong framebuffers with parameterized spatial transformation, optical distortion, and cursor injection.',
+    curatorialNote: 'Recreates the hypnotic self-referential aesthetics of pointing an analog video camera at its own monitor, giving rise to infinite recursive fractal corridors, spiraling mandalas, and chromatic dispersion.',
+    tags: ['video-feedback', 'ping-pong', 'fbo', 'crt', 'feedback-loop', 'distortion', 'chromatic-aberration', 'fractal-spirals', 'psychedelic', 'analog', 'recursion'],
+    moods: ['psychedelic', 'hypnotic', 'infinite', 'analog', 'trippy'],
+    defaultParams: {
+      seed: '#00F0FF',
+      preset: 'infinite-tunnel',
+      zoom: 1.025,
+      rotation: 0.015,
+      decay: 0.978,
+      hueShift: 0.008,
+      chromaticAberration: 0.012,
+      distortion: -0.05,
+      distortionK2: 0.0,
+      saturation: 1.15,
+      brightness: 1.05,
+      contrast: 1.10,
+      colorPalette: 'spectral-aurora',
+      injectionShape: 'ring',
+      injectionSize: 0.09,
+      injectionSpeed: 1.0,
+      injectionIntensity: 0.85,
+      brushRadius: 22,
+      brushIntensity: 1.0,
+      lfoZoom: 0.015,
+      lfoRotation: 0.008,
+      lfoSpeed: 0.5,
+      audioSource: 'synth',
+      audioSensitivity: 1.5,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Morphology Preset',
+        type: 'select',
+        options: [
+          { label: 'Infinite Tunnel', value: 'infinite-tunnel' },
+          { label: 'Fractal Spiral', value: 'fractal-spiral' },
+          { label: 'CRT Phosphor', value: 'crt-phosphor' },
+          { label: 'Kaleido Drift', value: 'kaleido-drift' },
+          { label: 'Solar Corona', value: 'solar-corona' },
+          { label: 'Quantum Lattice', value: 'quantum-lattice' },
+          { label: 'Cyber Glitch', value: 'cyber-glitch' },
+          { label: 'Abyssal Vortex', value: 'abyssal-vortex' },
+        ],
+        folder: 'Morphology & Presets',
+      },
+      { key: 'zoom', label: 'Spatial Zoom (S)', type: 'slider', min: 0.85, max: 1.20, step: 0.005, folder: 'Spatial Transformation' },
+      { key: 'rotation', label: 'Rotation Angle (θ)', type: 'slider', min: -0.10, max: 0.10, step: 0.002, folder: 'Spatial Transformation' },
+      { key: 'distortion', label: 'Lens Distortion (k1)', type: 'slider', min: -0.50, max: 0.50, step: 0.01, folder: 'Spatial Transformation' },
+      { key: 'distortionK2', label: 'Higher-Order (k2)', type: 'slider', min: -0.20, max: 0.20, step: 0.01, folder: 'Spatial Transformation' },
+      { key: 'chromaticAberration', label: 'Chromatic Dispersion (δ)', type: 'slider', min: 0.0, max: 0.05, step: 0.002, folder: 'Spatial Transformation' },
+
+      {
+        key: 'colorPalette',
+        label: 'Spectral Palette',
+        type: 'select',
+        options: [
+          { label: 'Spectral Aurora', value: 'spectral-aurora' },
+          { label: 'Solar Plasma', value: 'solar-plasma' },
+          { label: 'Phosphor CRT', value: 'phosphor-crt' },
+          { label: 'Cyber Neon', value: 'cyber-neon' },
+          { label: 'Obsidian Emerald', value: 'obsidian-emerald' },
+          { label: 'Cosmic Amethyst', value: 'cosmic-amethyst' },
+          { label: 'Monochrome Void', value: 'monochrome-void' },
+        ],
+        folder: 'Color Grading & Persistence',
+      },
+      { key: 'decay', label: 'Persistence / Decay', type: 'slider', min: 0.90, max: 0.999, step: 0.002, folder: 'Color Grading & Persistence' },
+      { key: 'hueShift', label: 'Hue Drift Rate (ΔH)', type: 'slider', min: -0.05, max: 0.05, step: 0.002, folder: 'Color Grading & Persistence' },
+      { key: 'saturation', label: 'Saturation Boost', type: 'slider', min: 0.5, max: 2.5, step: 0.05, folder: 'Color Grading & Persistence' },
+      { key: 'brightness', label: 'Exposure Gain', type: 'slider', min: 0.5, max: 2.0, step: 0.05, folder: 'Color Grading & Persistence' },
+      { key: 'contrast', label: 'Non-linear Contrast', type: 'slider', min: 0.5, max: 2.0, step: 0.05, folder: 'Color Grading & Persistence' },
+
+      {
+        key: 'injectionShape',
+        label: 'Seed Pattern',
+        type: 'select',
+        options: [
+          { label: 'Pulsating Ring', value: 'ring' },
+          { label: '5-Point Star', value: 'star' },
+          { label: 'Archimedean Spiral', value: 'spiral' },
+          { label: 'Hexagon Polygon', value: 'polygon' },
+          { label: 'Lissajous Knot', value: 'lissajous' },
+          { label: 'Crosshair Reticle', value: 'cross' },
+          { label: 'None (Pure Feedback)', value: 'none' },
+        ],
+        folder: 'Input Injection & Seeds',
+      },
+      { key: 'injectionSize', label: 'Pattern Size', type: 'slider', min: 0.02, max: 0.35, step: 0.01, folder: 'Input Injection & Seeds' },
+      { key: 'injectionSpeed', label: 'Spin Velocity', type: 'slider', min: -3.0, max: 3.0, step: 0.1, folder: 'Input Injection & Seeds' },
+      { key: 'injectionIntensity', label: 'Seed Brightness', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Input Injection & Seeds' },
+      { key: 'brushRadius', label: 'Cursor Brush Radius', type: 'slider', min: 5, max: 80, step: 1, folder: 'Input Injection & Seeds' },
+      { key: 'brushIntensity', label: 'Cursor Light Power', type: 'slider', min: 0.1, max: 2.0, step: 0.05, folder: 'Input Injection & Seeds' },
+
+      { key: 'lfoZoom', label: 'LFO Zoom Modulation', type: 'slider', min: 0.0, max: 0.08, step: 0.002, folder: 'LFO & Dynamics' },
+      { key: 'lfoRotation', label: 'LFO Rotation Modulation', type: 'slider', min: 0.0, max: 0.05, step: 0.002, folder: 'LFO & Dynamics' },
+      { key: 'lfoSpeed', label: 'LFO Rate', type: 'slider', min: 0.0, max: 3.0, step: 0.05, folder: 'LFO & Dynamics' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -1495,6 +1620,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'fractal-flames':
         modulePromise = import('./fractal-flames/index');
+        break;
+      case 'video-feedback':
+        modulePromise = import('./video-feedback/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

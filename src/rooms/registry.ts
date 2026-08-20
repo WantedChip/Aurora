@@ -1462,6 +1462,112 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 19
+  {
+    id: 'plasma',
+    index: 19,
+    indexDisplay: '#19',
+    name: 'Plasma Field',
+    category: 'psychedelic',
+    categoryName: 'Psychedelic & Optical',
+    backend: 'tsl-shader',
+    backendDisplay: 'TSL SHADER',
+    mathModel: 'Multi-Wave Trigonometric Interference & Palette Cycling',
+    description: 'Classic demoscene multi-source sine wave interference with Inigo Quilez cosine gradient color cycling and non-linear phase distortion.',
+    curatorialNote: 'Synthesizes organic fluid optical interference through analytical superposition of spatial wave vectors, non-linear domain warping, and smooth cosine palette mapping.',
+    tags: ['plasma', 'demoscene', 'trigonometric', 'interference', 'cosine-gradient', 'inigo-quilez', 'shader', 'tsl', 'waves'],
+    moods: ['hypnotic', 'psychedelic', 'vibrant', 'liquid', 'retro', 'optical'],
+    defaultParams: {
+      seed: '#00F0FF',
+      preset: 'classic-demoscene',
+      k1: 3.0,
+      k2: 3.0,
+      k3: 4.0,
+      k4: 5.0,
+      waveAngle: 0.785,
+      warpStrength: 0.35,
+      warpFrequency: 2.0,
+      animSpeed: 0.9,
+      colorCycleSpeed: 0.6,
+      colorCycles: 1.0,
+      contrast: 1.25,
+      brightness: 0.0,
+      colorPalette: 'rainbow-demoscene',
+      rippleStrength: 1.2,
+      rippleFrequency: 14.0,
+      audioSource: 'synth',
+      audioSensitivity: 1.0,
+      bassReaction: 1.2,
+      midReaction: 1.0,
+      trebleReaction: 1.4,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Canonical Preset',
+        type: 'select',
+        options: [
+          { label: 'Classic Demoscene', value: 'classic-demoscene' },
+          { label: 'Liquid Neon', value: 'liquid-neon' },
+          { label: 'Obsidian Gold', value: 'obsidian-gold' },
+          { label: 'Acid Vortex', value: 'acid-vortex' },
+          { label: 'Quantum Ripples', value: 'quantum-ripples' },
+          { label: 'Cosmic Aurora', value: 'cosmic-aurora' },
+          { label: 'Monochrome Lithic', value: 'monochrome-lithic' },
+        ],
+        folder: 'Preset & Palettes',
+      },
+      {
+        key: 'colorPalette',
+        label: 'Cosine Palette',
+        type: 'select',
+        options: [
+          { label: 'Rainbow Demoscene', value: 'rainbow-demoscene' },
+          { label: 'Neon Cyan / Magenta', value: 'neon-cyan-magenta' },
+          { label: 'Obsidian Gold', value: 'obsidian-gold' },
+          { label: 'Acid Green', value: 'acid-green' },
+          { label: 'Spectral Aurora', value: 'spectral-aurora' },
+          { label: 'Cosmic Amethyst', value: 'cosmic-amethyst' },
+          { label: 'Monochrome Lithic', value: 'monochrome-lithic' },
+        ],
+        folder: 'Preset & Palettes',
+      },
+      { key: 'colorCycleSpeed', label: 'Color Cycle Speed', type: 'slider', min: 0.0, max: 3.0, step: 0.05, folder: 'Preset & Palettes' },
+      { key: 'colorCycles', label: 'Color Cycles / Freq', type: 'slider', min: 0.5, max: 5.0, step: 0.1, folder: 'Preset & Palettes' },
+
+      { key: 'k1', label: 'Wave 1 Freq (X)', type: 'slider', min: 0.5, max: 15.0, step: 0.1, folder: 'Wave Harmonics' },
+      { key: 'k2', label: 'Wave 2 Freq (Y)', type: 'slider', min: 0.5, max: 15.0, step: 0.1, folder: 'Wave Harmonics' },
+      { key: 'k3', label: 'Wave 3 Freq (Diag)', type: 'slider', min: 0.5, max: 15.0, step: 0.1, folder: 'Wave Harmonics' },
+      { key: 'k4', label: 'Wave 4 Freq (Radial)', type: 'slider', min: 0.5, max: 25.0, step: 0.2, folder: 'Wave Harmonics' },
+      { key: 'waveAngle', label: 'Diagonal Angle (θ)', type: 'slider', min: 0.0, max: 3.14, step: 0.05, folder: 'Wave Harmonics' },
+      { key: 'animSpeed', label: 'Evolution Speed', type: 'slider', min: 0.0, max: 3.0, step: 0.05, folder: 'Wave Harmonics' },
+
+      { key: 'warpStrength', label: 'Domain Warp Power', type: 'slider', min: 0.0, max: 3.0, step: 0.05, folder: 'Domain Warping & Tone' },
+      { key: 'warpFrequency', label: 'Warp Frequency', type: 'slider', min: 0.5, max: 10.0, step: 0.1, folder: 'Domain Warping & Tone' },
+      { key: 'contrast', label: 'Contrast', type: 'slider', min: 0.5, max: 3.0, step: 0.05, folder: 'Domain Warping & Tone' },
+      { key: 'brightness', label: 'Brightness Offset', type: 'slider', min: -0.5, max: 0.5, step: 0.02, folder: 'Domain Warping & Tone' },
+
+      { key: 'rippleStrength', label: 'Cursor Wave Power', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Cursor Ripple Dynamics' },
+      { key: 'rippleFrequency', label: 'Ripple Frequency', type: 'slider', min: 2.0, max: 30.0, step: 0.5, folder: 'Cursor Ripple Dynamics' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'bassReaction', label: 'Bass Reaction', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'midReaction', label: 'Mid Reaction', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'trebleReaction', label: 'Treble Reaction', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -1623,6 +1729,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'video-feedback':
         modulePromise = import('./video-feedback/index');
+        break;
+      case 'plasma':
+        modulePromise = import('./plasma/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

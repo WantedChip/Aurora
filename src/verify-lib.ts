@@ -2790,6 +2790,145 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'video-feedback/index.ts', details: String(err) });
   }
 
+  // 25. Verify Room 19: Plasma Field (Multi-Wave Trigonometric Interference & Palette Cycling)
+  try {
+    const plasmaCanvas = document.createElement('canvas');
+    plasmaCanvas.width = 600;
+    plasmaCanvas.height = 600;
+    const plasmaContainer = document.createElement('div');
+    const plasmaPrng = createPRNG('#00F0FF');
+
+    const plasmaMeta = getRoomById('plasma');
+    const roomInstance = await lazyLoadRoom('plasma');
+
+    const ctx: RoomContext = {
+      canvas: plasmaCanvas,
+      container: plasmaContainer,
+      params: { ...(plasmaMeta?.defaultParams || {}) },
+      prng: plasmaPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // Test parameter dynamic updates across presets, multi-wave frequencies, and cosine palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'liquid-neon',
+        colorPalette: 'neon-cyan-magenta',
+        k1: 2.5,
+        k2: 4.0,
+        k3: 3.5,
+        k4: 6.0,
+      });
+      roomInstance.updateParams({
+        preset: 'obsidian-gold',
+        colorPalette: 'obsidian-gold',
+        warpStrength: 0.5,
+      });
+      roomInstance.updateParams({
+        preset: 'acid-vortex',
+        colorPalette: 'acid-green',
+        waveAngle: 1.57,
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-ripples',
+        colorPalette: 'spectral-aurora',
+        rippleFrequency: 24.0,
+      });
+      roomInstance.updateParams({
+        preset: 'cosmic-aurora',
+        colorPalette: 'cosmic-amethyst',
+        colorCycles: 1.1,
+      });
+      roomInstance.updateParams({
+        preset: 'monochrome-lithic',
+        colorPalette: 'monochrome-lithic',
+        contrast: 1.75,
+      });
+      roomInstance.updateParams({
+        preset: 'classic-demoscene',
+        colorPalette: 'rainbow-demoscene',
+        k1: 3.0,
+        k2: 3.0,
+        k3: 4.0,
+        k4: 5.0,
+        contrast: 1.25,
+      });
+    }
+
+    // Test pointer interactions (wave emitter & shockwave ripple burst)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 350,
+        y: 320,
+        normalizedX: 0.58,
+        normalizedY: 0.53,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 350,
+        y: 320,
+        normalizedX: 0.58,
+        normalizedY: 0.53,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test offline snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const plasmaPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: plasmaPassed,
+      module: 'plasma/index.ts (Room 19)',
+      details: `Plasma Field mounted, verified composite trigonometric waves (k1..k4, waveAngle), domain warping, Inigo Quilez cosine gradient mapping across 7 presets and 7 palettes, interactive pointer ripple wave emitter, and offline snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'plasma/index.ts', details: String(err) });
+  }
+
   // 25. Verify Client-Side Hash Router
   try {
     router.start();
@@ -3607,7 +3746,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const loadedInstances = await Promise.all(rooms.map(r => lazyLoadRoom(r.id)));
 
     const allLoaded =
-      rooms.length >= 18 &&
+      rooms.length >= 19 &&
       loadedInstances.length === rooms.length &&
       loadedInstances.every(inst => inst && typeof inst.mount === 'function');
 

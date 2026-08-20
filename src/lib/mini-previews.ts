@@ -302,6 +302,9 @@ export class MiniPreviewManager {
       case 'video-feedback': {
         return { rot: 0, zoomPhase: 0, rings: 7 };
       }
+      case 'plasma': {
+        return { t: 0, phase: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -796,6 +799,68 @@ export class MiniPreviewManager {
           ctx.strokeRect(-r, -r, r * 2, r * 2);
           ctx.restore();
         }
+        break;
+      }
+
+      case 'plasma': {
+        state.t += dt * (isHovered ? 2.5 : 1.2);
+        state.phase += dt * (isHovered ? 1.8 : 0.8);
+        const t = state.t;
+        const phase = state.phase;
+        const aspect = w / h;
+        const step = 4;
+        const imgData = ctx.createImageData(w, h);
+        const data = imgData.data;
+
+        const ptrX = pointerX >= 0 ? (pointerX / w - 0.5) * aspect : 0;
+        const ptrY = pointerY >= 0 ? pointerY / h - 0.5 : 0;
+        const hasPtr = pointerX >= 0;
+
+        for (let y = 0; y < h; y += step) {
+          const v = (y / h) - 0.5;
+          for (let x = 0; x < w; x += step) {
+            const u = (x / w - 0.5) * aspect;
+
+            const wx = u + 0.3 * Math.sin(v * 3.0 + t * 0.8);
+            const wy = v + 0.3 * Math.cos(u * 3.0 + t * 0.9);
+
+            const w1 = Math.sin(wx * 4.0 + t);
+            const w2 = Math.sin(wy * 4.0 + t * 1.2);
+            const w3 = Math.sin((wx * 0.7 + wy * 0.7) * 5.0 + t * 1.4);
+            const r4 = Math.sqrt(wx * wx + wy * wy + 0.0001);
+            const w4 = Math.sin(r4 * 6.0 - t * 1.6);
+
+            let w5 = 0;
+            if (hasPtr) {
+              const dx = wx - ptrX;
+              const dy = wy - ptrY;
+              const d = Math.sqrt(dx * dx + dy * dy + 0.0001);
+              w5 = Math.sin(d * 16.0 - t * 3.0) * Math.exp(-3.0 * d) * 1.5;
+            }
+
+            const pVal = (w1 + w2 + w3 + w4 + w5) * 0.25 * 1.4 + phase;
+
+            const twoPi = Math.PI * 2.0;
+            const cr = Math.min(Math.max(0.5 + 0.5 * Math.cos(twoPi * (pVal)), 0), 1);
+            const cg = Math.min(Math.max(0.5 + 0.5 * Math.cos(twoPi * (pVal + 0.333)), 0), 1);
+            const cb = Math.min(Math.max(0.5 + 0.5 * Math.cos(twoPi * (pVal + 0.667)), 0), 1);
+
+            const rByte = Math.floor(cr * 255);
+            const gByte = Math.floor(cg * 255);
+            const bByte = Math.floor(cb * 255);
+
+            for (let dy = 0; dy < step && y + dy < h; dy++) {
+              for (let dx = 0; dx < step && x + dx < w; dx++) {
+                const idx = ((y + dy) * w + (x + dx)) * 4;
+                data[idx] = rByte;
+                data[idx + 1] = gByte;
+                data[idx + 2] = bByte;
+                data[idx + 3] = 255;
+              }
+            }
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
         break;
       }
 

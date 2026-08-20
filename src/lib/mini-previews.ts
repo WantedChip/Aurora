@@ -317,6 +317,9 @@ export class MiniPreviewManager {
         }
         return { particles, t: 0 };
       }
+      case 'moire': {
+        return { angle1: 0, angle2: 0, t: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -950,6 +953,66 @@ export class MiniPreviewManager {
           ctx.fillStyle = amp < 0.25 ? '#D4AF37' : '#FFF5CC';
           ctx.fillRect(scrX - 1, scrY - 1, 2, 2);
         }
+        break;
+      }
+
+      case 'moire': {
+        state.t += dt * (isHovered ? 2.2 : 1.0);
+        state.angle1 += dt * (isHovered ? 0.35 : 0.15);
+        state.angle2 -= dt * (isHovered ? 0.45 : 0.2);
+
+        ctx.fillStyle = '#090A0D';
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+        const maxR = Math.min(w, h) * 0.44;
+
+        const ptrShiftX = pointerX >= 0 ? (pointerX - cx) * 0.25 : Math.sin(state.t * 0.8) * 12;
+        const ptrShiftY = pointerY >= 0 ? (pointerY - cy) * 0.25 : Math.cos(state.t * 0.9) * 8;
+
+        const rings = 28;
+        const step = maxR / rings;
+
+        // Layer 1 concentric circles
+        ctx.lineWidth = 1.2;
+        for (let i = 1; i <= rings; i++) {
+          const r = i * step;
+          const alpha = 0.55 + 0.3 * Math.sin(i * 0.4 + state.t);
+          ctx.strokeStyle = `rgba(0, 240, 255, ${alpha * 0.7})`;
+          ctx.beginPath();
+          ctx.arc(cx - ptrShiftX * 0.5, cy - ptrShiftY * 0.5, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Layer 2 offset concentric circles creating dynamic hyperbolic moiré beat fringes
+        for (let i = 1; i <= rings; i++) {
+          const r = i * step;
+          const alpha = 0.55 + 0.3 * Math.cos(i * 0.4 - state.t);
+          ctx.strokeStyle = isHovered ? `rgba(255, 42, 109, ${alpha * 0.75})` : `rgba(244, 246, 251, ${alpha * 0.7})`;
+          ctx.beginPath();
+          ctx.arc(cx + ptrShiftX * 0.8, cy + ptrShiftY * 0.8, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Starburst spoke rays intersecting for rotary moiré
+        const spokes = 20;
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.25)';
+        ctx.lineWidth = 1.0;
+        for (let i = 0; i < spokes; i++) {
+          const a1 = state.angle1 + (i / spokes) * Math.PI * 2;
+          const a2 = state.angle2 + (i / spokes) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(a1) * maxR, cy + Math.sin(a1) * maxR);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(cx + ptrShiftX, cy + ptrShiftY);
+          ctx.lineTo(cx + ptrShiftX + Math.cos(a2) * maxR, cy + ptrShiftY + Math.sin(a2) * maxR);
+          ctx.stroke();
+        }
+
         break;
       }
 

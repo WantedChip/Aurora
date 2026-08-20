@@ -1703,6 +1703,163 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'trebleReaction', label: 'Treble Reaction (Harmonics)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 21
+  {
+    id: 'moire',
+    index: 21,
+    indexDisplay: '#21',
+    name: 'Moiré Interference Patterns',
+    category: 'psychedelic',
+    categoryName: 'Psychedelic & Optical',
+    backend: 'tsl-shader',
+    backendDisplay: 'THREE.JS / TSL',
+    mathModel: 'Overlapping Rotational Geometric Gratings & Prismatic Optical Dispersion',
+    description: 'Kinetic optical moiré beat fringes, rotational grating superpositions, and prismatic chromatic shimmer.',
+    curatorialNote: 'Superimposes high-density linear Ronchi rulings, Fresnel zone plates, radial spokes, logarithmic spirals, and hexagonal dot lattices to reveal macroscopic phantom interference contours.',
+    tags: ['moire', 'interference', 'gratings', 'ronchi', 'optical-illusion', 'fresnel', 'spirals', 'chromatic-dispersion', 'tsl', 'shader'],
+    moods: ['optical', 'hypnotic', 'kinetic', 'op-art', 'prismatic', 'geometric'],
+    defaultParams: {
+      seed: '#00F0FF',
+      preset: 'rotational-rings',
+      gratingType: 'rings',
+      waveform: 'cosine',
+      layerCount: 2,
+      density: 38.0,
+      sharpness: 1.2,
+      rotationSpeed1: 0.12,
+      rotationSpeed2: -0.15,
+      rotationSpeed3: 0.25,
+      rotationSpeed4: -0.35,
+      angleOffset: 0.08,
+      scaleRatio: 1.0,
+      centerDistance: 0.05,
+      blendMode: 'multiplication',
+      spiralArms: 6,
+      spokeCount: 36,
+      pointerInfluence: 1.2,
+      pointerInertia: 12.0,
+      chromaticMode: false,
+      chromaticDispersion: 0.05,
+      colorPalette: 'monochrome-op-art',
+      contrast: 1.3,
+      brightness: 0.0,
+      audioSource: 'synth',
+      audioSensitivity: 1.0,
+      bassReaction: 1.2,
+      midReaction: 1.0,
+      trebleReaction: 1.4,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Optical Preset',
+        type: 'select',
+        options: [
+          { label: 'Rotational Rings (Hyperbolic Beat)', value: 'rotational-rings' },
+          { label: 'Counter Spokes (Starburst Gears)', value: 'counter-spokes' },
+          { label: 'Cross Rulings (Macroscopic Beat)', value: 'cross-rulings' },
+          { label: 'Spiral Vortex (Kaleidoscopic)', value: 'spiral-vortex' },
+          { label: 'Fresnel Zone Beat (Linear Fringe)', value: 'fresnel-zone-beat' },
+          { label: 'Chromatic Shimmer (Prismatic)', value: 'chromatic-shimmer' },
+          { label: 'Hexagonal Lattice (Honeycomb)', value: 'hexagonal-lattice' },
+        ],
+        folder: 'Grating Geometry & Waveform',
+      },
+      {
+        key: 'gratingType',
+        label: 'Grating Geometry',
+        type: 'select',
+        options: [
+          { label: 'Concentric Rings (Circular Zones)', value: 'rings' },
+          { label: 'Parallel Rulings (Linear Ronchi)', value: 'linear' },
+          { label: 'Radial Spokes (Star Wheel)', value: 'spokes' },
+          { label: 'Logarithmic Spirals (Vortex)', value: 'spirals' },
+          { label: 'Fresnel Zone Plates (Quadratic)', value: 'fresnel' },
+          { label: 'Hexagonal Lattice (3-Plane Wave)', value: 'hex' },
+        ],
+        folder: 'Grating Geometry & Waveform',
+      },
+      {
+        key: 'waveform',
+        label: 'Waveform Profile',
+        type: 'select',
+        options: [
+          { label: 'Cosine (Smooth Sinusoidal)', value: 'cosine' },
+          { label: 'Ronchi Bar (Antialiased Square)', value: 'ronchi' },
+          { label: 'Triangle Wave (Linear Ramp)', value: 'triangle' },
+          { label: 'Sinusoidal Power (Narrow Bar)', value: 'sinusoidal-power' },
+        ],
+        folder: 'Grating Geometry & Waveform',
+      },
+      { key: 'layerCount', label: 'Active Layers', type: 'slider', min: 2, max: 4, step: 1, folder: 'Grating Geometry & Waveform' },
+      { key: 'density', label: 'Spatial Density (k)', type: 'slider', min: 5.0, max: 120.0, step: 1.0, folder: 'Grating Geometry & Waveform' },
+      { key: 'sharpness', label: 'Edge Sharpness / Contrast', type: 'slider', min: 0.1, max: 3.0, step: 0.05, folder: 'Grating Geometry & Waveform' },
+      { key: 'spiralArms', label: 'Spiral Arm Count', type: 'slider', min: 1, max: 24, step: 1, folder: 'Grating Geometry & Waveform' },
+      { key: 'spokeCount', label: 'Radial Spoke Count', type: 'slider', min: 8, max: 120, step: 2, folder: 'Grating Geometry & Waveform' },
+
+      { key: 'rotationSpeed1', label: 'Layer 1 Velocity (ω₁)', type: 'slider', min: -3.0, max: 3.0, step: 0.02, folder: 'Rotational Dynamics & Layers' },
+      { key: 'rotationSpeed2', label: 'Layer 2 Velocity (ω₂)', type: 'slider', min: -3.0, max: 3.0, step: 0.02, folder: 'Rotational Dynamics & Layers' },
+      { key: 'rotationSpeed3', label: 'Layer 3 Velocity (ω₃)', type: 'slider', min: -3.0, max: 3.0, step: 0.02, folder: 'Rotational Dynamics & Layers' },
+      { key: 'rotationSpeed4', label: 'Layer 4 Velocity (ω₄)', type: 'slider', min: -3.0, max: 3.0, step: 0.02, folder: 'Rotational Dynamics & Layers' },
+      { key: 'angleOffset', label: 'Angular Layer Step (Δθ)', type: 'slider', min: 0.0, max: 3.14, step: 0.01, folder: 'Rotational Dynamics & Layers' },
+      { key: 'scaleRatio', label: 'Layer Scale Ratio (sᵢ)', type: 'slider', min: 0.8, max: 1.5, step: 0.01, folder: 'Rotational Dynamics & Layers' },
+      { key: 'centerDistance', label: 'Center Displacement (cᵢ)', type: 'slider', min: 0.0, max: 0.4, step: 0.01, folder: 'Rotational Dynamics & Layers' },
+      {
+        key: 'blendMode',
+        label: 'Layer Blend Mode',
+        type: 'select',
+        options: [
+          { label: 'Multiplication (Physical Overlay)', value: 'multiplication' },
+          { label: 'Addition (Superposition)', value: 'addition' },
+          { label: 'Difference (Contours)', value: 'difference' },
+          { label: 'XOR (Interference)', value: 'xor' },
+          { label: 'Min (Transmission Cut)', value: 'min' },
+          { label: 'Max (Highlight Union)', value: 'max' },
+        ],
+        folder: 'Rotational Dynamics & Layers',
+      },
+
+      { key: 'pointerInfluence', label: 'Cursor Focal Shift', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Pointer Dynamics' },
+      { key: 'pointerInertia', label: 'Spring Inertia Rate', type: 'slider', min: 2.0, max: 25.0, step: 1.0, folder: 'Pointer Dynamics' },
+
+      { key: 'chromaticMode', label: 'Chromatic Dispersion', type: 'boolean', folder: 'Color & Spectral Dispersion' },
+      { key: 'chromaticDispersion', label: 'Dispersion Delta (Δλ)', type: 'slider', min: 0.0, max: 0.25, step: 0.005, folder: 'Color & Spectral Dispersion' },
+      {
+        key: 'colorPalette',
+        label: 'Curatorial Palette',
+        type: 'select',
+        options: [
+          { label: 'Monochrome Op-Art', value: 'monochrome-op-art' },
+          { label: 'Monochrome Inverted', value: 'monochrome-inverted' },
+          { label: 'Spectral Dispersion (Rainbow)', value: 'spectral-dispersion' },
+          { label: 'Obsidian Gold', value: 'obsidian-gold' },
+          { label: 'Cyber Neon', value: 'cyber-neon' },
+          { label: 'Solar Plasma', value: 'solar-plasma' },
+          { label: 'Bioluminescent Cyan', value: 'bioluminescent-cyan' },
+        ],
+        folder: 'Color & Spectral Dispersion',
+      },
+      { key: 'contrast', label: 'Visual Contrast', type: 'slider', min: 0.5, max: 3.0, step: 0.1, folder: 'Color & Spectral Dispersion' },
+      { key: 'brightness', label: 'Exposure Bias', type: 'slider', min: -0.5, max: 0.5, step: 0.02, folder: 'Color & Spectral Dispersion' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'bassReaction', label: 'Bass Reaction (Pulsation)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'midReaction', label: 'Mid Reaction (Rotation)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'trebleReaction', label: 'Treble Reaction (Shimmer)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -1870,6 +2027,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'cymatics':
         modulePromise = import('./cymatics/index');
+        break;
+      case 'moire':
+        modulePromise = import('./moire/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

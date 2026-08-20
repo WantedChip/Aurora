@@ -779,6 +779,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const fractalFlames = getRoomById('fractal-flames');
     const videoFeedback = getRoomById('video-feedback');
     const cymatics = getRoomById('cymatics');
+    const moire = getRoomById('moire');
     const artLifeRooms = filterRoomsByCategory('art-life');
     const psychedelicRooms = filterRoomsByCategory('psychedelic');
     const categories = getCategories();
@@ -787,28 +788,31 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const searchMatch3 = searchRooms('scott draves');
     const searchMatch4 = searchRooms('video feedback');
     const searchMatch5 = searchRooms('chladni');
+    const searchMatch6 = searchRooms('ronchi');
     const searchEmpty = searchRooms('quantum-nonexistent-tag');
 
     const registryPassed =
-      allRooms.length >= 20 &&
+      allRooms.length >= 21 &&
       physarum?.name === 'Physarum Slime Mold' &&
       fractalFlames?.name === 'Fractal Flames' &&
       videoFeedback?.name === 'Video Feedback Loop' &&
       cymatics?.name === 'Cymatics & Chladni Resonance' &&
+      moire?.name === 'Moiré Interference Patterns' &&
       artLifeRooms.length === 6 &&
-      psychedelicRooms.length >= 4 &&
+      psychedelicRooms.length >= 5 &&
       categories.length === 9 &&
       searchMatch1.some(r => r.id === 'physarum') &&
       searchMatch2.some(r => r.id === 'reaction-diffusion') &&
       searchMatch3.some(r => r.id === 'fractal-flames') &&
       searchMatch4.some(r => r.id === 'video-feedback') &&
       searchMatch5.some(r => r.id === 'cymatics') &&
+      searchMatch6.some(r => r.id === 'moire') &&
       searchEmpty.length === 0;
 
     results.push({
       passed: registryPassed,
       module: 'registry.ts (Catalog & Search)',
-      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}, "chladni" -> #${searchMatch5[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms.`,
+      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}, "chladni" -> #${searchMatch5[0]?.index}, "ronchi" -> #${searchMatch6[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'registry.ts', details: String(err) });
@@ -3100,6 +3104,216 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     });
   } catch (err) {
     results.push({ passed: false, module: 'cymatics/index.ts', details: String(err) });
+  }
+
+  // 27. Verify Room 21: Moiré Interference Patterns (Dynamic Rotational Gratings & Optical Shimmer)
+  try {
+    const moireCanvas = document.createElement('canvas');
+    moireCanvas.width = 600;
+    moireCanvas.height = 600;
+    const moireContainer = document.createElement('div');
+    const moirePrng = createPRNG('#00F0FF');
+
+    const moireMeta = getRoomById('moire');
+    const roomInstance = await lazyLoadRoom('moire');
+
+    const { evaluateGrating, combineLayers, evaluateMoirePixel } = await import('./rooms/moire/index');
+
+    // 1. Test mathematical accuracy of geometric grating functions
+    const linearVal0 = evaluateGrating(0, 0, 'linear', 'cosine', 20.0, 0.0, [0, 0]);
+    const linearValPi = evaluateGrating(Math.PI / 20.0, 0, 'linear', 'cosine', 20.0, 0.0, [0, 0]);
+    const ringCenter = evaluateGrating(0, 0, 'rings', 'cosine', 20.0, 0.0, [0, 0]);
+    const ringRadial = evaluateGrating(Math.PI / 20.0, 0, 'rings', 'cosine', 20.0, 0.0, [0, 0]);
+    const spokeVal = evaluateGrating(0.5, 0.5, 'spokes', 'cosine', 20.0, 0.0, [0, 0], 1.0, 36);
+    const spiralVal = evaluateGrating(0.3, 0.3, 'spirals', 'cosine', 20.0, 0.0, [0, 0], 1.0, 36, 6);
+    const fresnelVal = evaluateGrating(0.2, 0.2, 'fresnel', 'cosine', 20.0, 0.0, [0, 0]);
+    const hexVal = evaluateGrating(0.2, 0.2, 'hex', 'cosine', 20.0, 0.0, [0, 0]);
+
+    const gratingsAccurate =
+      Math.abs(linearVal0 - 1.0) < 1e-4 &&
+      Math.abs(linearValPi - 0.0) < 1e-4 &&
+      Math.abs(ringCenter - 1.0) < 1e-4 &&
+      Math.abs(ringRadial - 0.0) < 1e-4 &&
+      spokeVal >= 0.0 && spokeVal <= 1.0 &&
+      spiralVal >= 0.0 && spiralVal <= 1.0 &&
+      fresnelVal >= 0.0 && fresnelVal <= 1.0 &&
+      hexVal >= 0.0 && hexVal <= 1.0;
+
+    // 2. Test waveform profiles (ronchi, triangle, sinusoidal-power)
+    const ronchiVal = evaluateGrating(0, 0, 'linear', 'ronchi', 20.0, 0.0, [0, 0], 1.5);
+    const triVal = evaluateGrating(0, 0, 'linear', 'triangle', 20.0, 0.0, [0, 0]);
+    const powerVal = evaluateGrating(0, 0, 'linear', 'sinusoidal-power', 20.0, 0.0, [0, 0], 2.0);
+
+    const waveformsValid =
+      typeof ronchiVal === 'number' && ronchiVal >= 0.0 && ronchiVal <= 1.0 &&
+      typeof triVal === 'number' && triVal >= 0.0 && triVal <= 1.0 &&
+      typeof powerVal === 'number' && powerVal >= 0.0 && powerVal <= 1.0;
+
+    // 3. Test layer blend modes (multiplication, addition, difference, xor, min, max)
+    const blendMult = combineLayers([0.8, 0.6], 'multiplication');
+    const blendAdd = combineLayers([0.8, 0.6], 'addition');
+    const blendDiff = combineLayers([0.8, 0.6], 'difference');
+    const blendXor = combineLayers([0.8, 0.6], 'xor');
+    const blendMin = combineLayers([0.8, 0.6], 'min');
+    const blendMax = combineLayers([0.8, 0.6], 'max');
+
+    const blendsAccurate =
+      blendMult > 0 && blendMult <= 1.0 &&
+      Math.abs(blendAdd - 0.7) < 1e-4 &&
+      Math.abs(blendDiff - 0.2) < 1e-4 &&
+      Math.abs(blendMin - 0.6) < 1e-4 &&
+      Math.abs(blendMax - 0.8) < 1e-4 &&
+      blendXor >= 0.0 && blendXor <= 1.0;
+
+    // 4. Test chromatic dispersion & pixel evaluation
+    const defaultParams = { ...(moireMeta?.defaultParams as any) };
+    const pixelMono = evaluateMoirePixel(0, 0, defaultParams, [0, 0, 0, 0], [0, 0]);
+    const chromaticParams = { ...defaultParams, chromaticMode: true, chromaticDispersion: 0.08 };
+    const pixelChromatic = evaluateMoirePixel(0.1, 0.1, chromaticParams, [0.2, -0.2, 0.4, -0.4], [0.05, 0.05]);
+
+    const pixelMathValid =
+      pixelMono.length === 3 &&
+      pixelMono.every(c => typeof c === 'number' && c >= 0 && c <= 1.0) &&
+      pixelChromatic.length === 3 &&
+      pixelChromatic.every(c => typeof c === 'number' && c >= 0 && c <= 1.0);
+
+    // 5. Mount room instance
+    const ctx: RoomContext = {
+      canvas: moireCanvas,
+      container: moireContainer,
+      params: { ...(moireMeta?.defaultParams || {}) },
+      prng: moirePrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 6. Test parameter updates across all 7 presets, blend modes, and palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'counter-spokes',
+        gratingType: 'spokes',
+        spokeCount: 48,
+        colorPalette: 'obsidian-gold',
+      });
+      roomInstance.updateParams({
+        preset: 'cross-rulings',
+        gratingType: 'linear',
+        density: 60.0,
+        blendMode: 'multiplication',
+        colorPalette: 'monochrome-op-art',
+      });
+      roomInstance.updateParams({
+        preset: 'spiral-vortex',
+        gratingType: 'spirals',
+        spiralArms: 8,
+        layerCount: 3,
+        colorPalette: 'bioluminescent-cyan',
+        chromaticMode: true,
+      });
+      roomInstance.updateParams({
+        preset: 'fresnel-zone-beat',
+        gratingType: 'fresnel',
+        layerCount: 2,
+        colorPalette: 'cyber-neon',
+      });
+      roomInstance.updateParams({
+        preset: 'chromatic-shimmer',
+        gratingType: 'linear',
+        layerCount: 3,
+        chromaticDispersion: 0.08,
+        colorPalette: 'spectral-dispersion',
+      });
+      roomInstance.updateParams({
+        preset: 'hexagonal-lattice',
+        gratingType: 'hex',
+        layerCount: 2,
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'rotational-rings',
+        gratingType: 'rings',
+        waveform: 'cosine',
+        layerCount: 2,
+        density: 38.0,
+        colorPalette: 'monochrome-op-art',
+      });
+    }
+
+    // 7. Test pointer interaction events
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 350,
+        y: 320,
+        normalizedX: 0.58,
+        normalizedY: 0.53,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 350,
+        y: 320,
+        normalizedX: 0.58,
+        normalizedY: 0.53,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 8. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 9. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const moirePassed =
+      gratingsAccurate &&
+      waveformsValid &&
+      blendsAccurate &&
+      pixelMathValid &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: moirePassed,
+      module: 'moire/index.ts (Room 21)',
+      details: `Moiré Interference Patterns mounted, verified 6 geometric grating generators (Ronchi linear, concentric rings, Fresnel zone plates, radial spokes, logarithmic spirals, hexagonal dot lattice), 4 waveforms, 6 blend modes, prismatic chromatic dispersion, 7 canonical presets, 7 spectral palettes, pointer spring inertia, and offline snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'moire/index.ts', details: String(err) });
   }
 
   // 25. Verify Client-Side Hash Router

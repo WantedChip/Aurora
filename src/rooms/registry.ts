@@ -1216,6 +1216,127 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'colorCycleSpeed', label: 'Color Harmonic Drift', type: 'slider', min: 0.0, max: 2.0, step: 0.1, folder: 'Aesthetics & Optics' },
     ],
   },
+
+  // Room 17
+  {
+    id: 'fractal-flames',
+    index: 17,
+    indexDisplay: '#17',
+    name: 'Fractal Flames',
+    category: 'psychedelic',
+    categoryName: 'Psychedelic & Optical',
+    backend: 'webgl2',
+    backendDisplay: 'WEBGL2 / TSL',
+    mathModel: "Scott Draves' Non-linear IFS & Log-Density Tone Mapping",
+    description: 'Non-linear chaotic iterated function system evaluated across 300,000+ points with Scott Draves log-density tone mapping.',
+    curatorialNote: 'Realizes the revolutionary 1992 Draves flame algorithm, combining non-linear spatial variations, path-based structural coloring, and high-dynamic-range filament accumulation.',
+    tags: ['fractal', 'flames', 'ifs', 'chaos', 'log-density', 'tone-mapping', 'scott-draves', 'variations', 'swirl', 'spherical', 'attractor'],
+    moods: ['psychedelic', 'hypnotic', 'intricate', 'luminous', 'cosmic'],
+    defaultParams: {
+      seed: '#FF2A6D',
+      preset: 'phoenix-nebula',
+      pointCount: 300000,
+      iterationsPerFrame: 3,
+      transformCount: 4,
+      symmetryFold: 2,
+      gamma: 2.2,
+      brightness: 3.0,
+      vibrance: 1.2,
+      pointSize: 1.6,
+      glowIntensity: 1.2,
+      zoom: 1.1,
+      panX: 0.0,
+      panY: 0.0,
+      rotationSpeed: 0.2,
+      autoRotate: true,
+      colorPalette: 'spectral-aurora',
+      linearWeight: 0.3,
+      sinusoidalWeight: 0.4,
+      sphericalWeight: 0.6,
+      swirlWeight: 0.8,
+      horseshoeWeight: 0.0,
+      polarWeight: 0.0,
+      handkerchiefWeight: 0.0,
+      heartWeight: 0.0,
+      discWeight: 0.0,
+      spiralWeight: 0.0,
+      hyperbolicWeight: 0.0,
+      audioSource: 'synth',
+      audioSensitivity: 1.5,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Morphology Preset',
+        type: 'select',
+        options: [
+          { label: 'Phoenix Nebula', value: 'phoenix-nebula' },
+          { label: 'Dragon Spirals', value: 'dragon-spirals' },
+          { label: 'Cosmic Cross', value: 'cosmic-cross' },
+          { label: 'Hyperbolic Bloom', value: 'hyperbolic-bloom' },
+          { label: 'Quantum Crystal', value: 'quantum-crystal' },
+          { label: 'Solar Corona', value: 'solar-corona' },
+          { label: 'Abyssal Vortex', value: 'abyssal-vortex' },
+          { label: 'Sierpinski Chaos', value: 'sierpinski-chaos' },
+        ],
+        folder: 'Morphology & Presets',
+      },
+      { key: 'pointCount', label: 'Point Cloud Capacity', type: 'slider', min: 50000, max: 600000, step: 10000, folder: 'Morphology & Presets' },
+      { key: 'iterationsPerFrame', label: 'Iteration Steps / Frame', type: 'slider', min: 1, max: 8, step: 1, folder: 'Morphology & Presets' },
+      { key: 'transformCount', label: 'Transform Count', type: 'slider', min: 2, max: 6, step: 1, folder: 'Morphology & Presets' },
+      { key: 'symmetryFold', label: 'Rotational Symmetry', type: 'slider', min: 1, max: 8, step: 1, folder: 'Morphology & Presets' },
+
+      { key: 'linearWeight', label: 'V0: Linear', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'sinusoidalWeight', label: 'V1: Sinusoidal', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'sphericalWeight', label: 'V2: Spherical', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'swirlWeight', label: 'V3: Swirl', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'horseshoeWeight', label: 'V4: Horseshoe', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'polarWeight', label: 'V5: Polar', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'handkerchiefWeight', label: 'V6: Handkerchief', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'heartWeight', label: 'V7: Heart', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'discWeight', label: 'V8: Disc', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'spiralWeight', label: 'V9: Spiral', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+      { key: 'hyperbolicWeight', label: 'V10: Hyperbolic', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'Non-Linear Variations' },
+
+      {
+        key: 'colorPalette',
+        label: 'Spectral Palette',
+        type: 'select',
+        options: [
+          { label: 'Spectral Aurora', value: 'spectral-aurora' },
+          { label: 'Solar Plasma', value: 'solar-plasma' },
+          { label: 'Bioluminescent Cyan', value: 'bioluminescent-cyan' },
+          { label: 'Obsidian Emerald', value: 'obsidian-emerald' },
+          { label: 'Cosmic Amethyst', value: 'cosmic-amethyst' },
+          { label: 'Monochrome Void', value: 'monochrome-void' },
+          { label: 'Electric Fire', value: 'electric-fire' },
+        ],
+        folder: 'Log-Density Tone Mapping & Optics',
+      },
+      { key: 'brightness', label: 'Exposure (κ)', type: 'slider', min: 0.5, max: 8.0, step: 0.1, folder: 'Log-Density Tone Mapping & Optics' },
+      { key: 'gamma', label: 'Gamma (γ)', type: 'slider', min: 0.8, max: 3.5, step: 0.05, folder: 'Log-Density Tone Mapping & Optics' },
+      { key: 'vibrance', label: 'Color Vibrance', type: 'slider', min: 0.2, max: 2.5, step: 0.05, folder: 'Log-Density Tone Mapping & Optics' },
+      { key: 'pointSize', label: 'Starlight Point Size', type: 'slider', min: 0.5, max: 4.0, step: 0.1, folder: 'Log-Density Tone Mapping & Optics' },
+      { key: 'glowIntensity', label: 'Core Radiance', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Log-Density Tone Mapping & Optics' },
+
+      { key: 'zoom', label: 'Viewport Zoom', type: 'slider', min: 0.2, max: 4.0, step: 0.05, folder: 'View & Kinematics' },
+      { key: 'autoRotate', label: 'Kinematic Auto-Rotate', type: 'boolean', folder: 'View & Kinematics' },
+      { key: 'rotationSpeed', label: 'Rotation Speed', type: 'slider', min: 0.0, max: 2.0, step: 0.05, folder: 'View & Kinematics' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -1225,7 +1346,7 @@ const ROOM_MAP = new Map<string, RoomMetadata>(ROOM_CATALOG.map(room => [room.id
 const roomInstanceCache = new Map<string, RoomInstance>();
 
 /**
- * Returns complete list of all 16 generative rooms in order.
+ * Returns complete list of all generative rooms in order.
  */
 export function getAllRooms(): readonly RoomMetadata[] {
   return ROOM_CATALOG;
@@ -1293,6 +1414,8 @@ export function getCategories(): { id: RoomCategory | 'all'; name: string; count
     { id: 'fluid', name: 'Fluid & Surface' },
     { id: 'cosmic', name: 'Cosmic' },
     { id: 'audio', name: 'Audio Reactive' },
+    { id: 'psychedelic', name: 'Psychedelic & Optical' },
+    { id: 'morphogenesis', name: 'Morphogenesis & Landscape' },
   ];
 
   return categories.map(cat => ({
@@ -1370,6 +1493,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
       case 'kaleidoscope':
         modulePromise = import('./kaleidoscope/index');
         break;
+      case 'fractal-flames':
+        modulePromise = import('./fractal-flames/index');
+        break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));
     }
@@ -1396,7 +1522,11 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         ? '#38BDF8'
         : metadata.category === 'cosmic'
         ? '#C084FC'
-        : '#FF3366';
+        : metadata.category === 'audio'
+        ? '#FF3366'
+        : metadata.category === 'psychedelic'
+        ? '#FF2A6D'
+        : '#05D69E';
 
     const fallbackInstance = createMockRoom(metadata.name, fallbackColor);
     roomInstanceCache.set(id, fallbackInstance);

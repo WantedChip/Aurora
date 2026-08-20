@@ -3,8 +3,8 @@
 # Aurora 🌌
 
 A static, client-side generative art gallery — flow fields, artificial
-life, chaos systems, fluid sims, and a couple of cosmic-scale particle
-rooms, all running in the browser with no backend.
+life, chaos systems, fluid sims, fractal flames, wave phenomena, terrain erosion,
+and cosmic-scale particle rooms, all running in the browser with no backend.
  
 </div>
 

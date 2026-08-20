@@ -11,7 +11,9 @@ export type RoomCategory =
   | 'chaos'
   | 'fluid'
   | 'cosmic'
-  | 'audio';
+  | 'audio'
+  | 'psychedelic'
+  | 'morphogenesis';
 
 export type ComputeBackend =
   | 'webgpu-compute'

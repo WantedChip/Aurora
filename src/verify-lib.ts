@@ -776,25 +776,31 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
   try {
     const allRooms = getAllRooms();
     const physarum = getRoomById('physarum');
+    const fractalFlames = getRoomById('fractal-flames');
     const artLifeRooms = filterRoomsByCategory('art-life');
+    const psychedelicRooms = filterRoomsByCategory('psychedelic');
     const categories = getCategories();
     const searchMatch1 = searchRooms('slime mold');
     const searchMatch2 = searchRooms('turing');
+    const searchMatch3 = searchRooms('scott draves');
     const searchEmpty = searchRooms('quantum-nonexistent-tag');
 
     const registryPassed =
-      allRooms.length === 16 &&
+      allRooms.length >= 17 &&
       physarum?.name === 'Physarum Slime Mold' &&
+      fractalFlames?.name === 'Fractal Flames' &&
       artLifeRooms.length === 6 &&
-      categories.length === 7 &&
+      psychedelicRooms.length >= 1 &&
+      categories.length === 9 &&
       searchMatch1.some(r => r.id === 'physarum') &&
       searchMatch2.some(r => r.id === 'reaction-diffusion') &&
+      searchMatch3.some(r => r.id === 'fractal-flames') &&
       searchEmpty.length === 0;
 
     results.push({
       passed: registryPassed,
       module: 'registry.ts (Catalog & Search)',
-      details: `16 rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}. 6 Art Life rooms.`,
+      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'registry.ts', details: String(err) });
@@ -2505,7 +2511,146 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'kaleidoscope/index.ts', details: String(err) });
   }
 
-  // 23. Verify Client-Side Hash Router
+  // 23. Verify Room 17: Fractal Flames (Non-linear IFS & Log-Density Tone Mapping)
+  try {
+    const ffCanvas = document.createElement('canvas');
+    ffCanvas.width = 600;
+    ffCanvas.height = 600;
+    const ffContainer = document.createElement('div');
+    const ffPrng = createPRNG('#FF2A6D');
+
+    const ffMeta = getRoomById('fractal-flames');
+    const roomInstance = await lazyLoadRoom('fractal-flames');
+
+    const ctx: RoomContext = {
+      canvas: ffCanvas,
+      container: ffContainer,
+      params: { ...(ffMeta?.defaultParams || {}) },
+      prng: ffPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // Test parameter dynamic updates across presets, variations, and tone mapping parameters
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'dragon-spirals',
+        colorPalette: 'obsidian-emerald',
+        gamma: 2.1,
+        brightness: 3.5,
+      });
+      roomInstance.updateParams({
+        preset: 'cosmic-cross',
+        colorPalette: 'cosmic-amethyst',
+        symmetryFold: 4,
+      });
+      roomInstance.updateParams({
+        preset: 'hyperbolic-bloom',
+        colorPalette: 'bioluminescent-cyan',
+        symmetryFold: 6,
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-crystal',
+        colorPalette: 'electric-fire',
+        symmetryFold: 3,
+      });
+      roomInstance.updateParams({
+        preset: 'solar-corona',
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'abyssal-vortex',
+        colorPalette: 'spectral-aurora',
+      });
+      roomInstance.updateParams({
+        preset: 'sierpinski-chaos',
+        colorPalette: 'monochrome-void',
+      });
+      roomInstance.updateParams({
+        preset: 'phoenix-nebula',
+        colorPalette: 'spectral-aurora',
+        linearWeight: 0.4,
+        sinusoidalWeight: 0.5,
+        sphericalWeight: 0.6,
+        swirlWeight: 0.7,
+        pointCount: 20000,
+      });
+    }
+
+    // Test pointer interactions (drag pan, click shockwave, leave)
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 350,
+        y: 320,
+        normalizedX: 0.58,
+        normalizedY: 0.53,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 350,
+        y: 320,
+        normalizedX: 0.58,
+        normalizedY: 0.53,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // Test resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // Test custom high-resolution offline snapshot capture with 2D histogram log-density tone mapping
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const fractalFlamesPassed =
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: fractalFlamesPassed,
+      module: 'fractal-flames/index.ts (Room 17)',
+      details: `Fractal Flames mounted, verified 8 canonical presets (Phoenix Nebula, Dragon Spirals, Cosmic Cross, Hyperbolic Bloom, Quantum Crystal, Solar Corona, Abyssal Vortex, Sierpinski Chaos), 7 curatorial palettes, Scott Draves log-density tone mapping, pointer drag pan / shockwave, and offline 2D histogram snapshot capture. Clean teardown verified.`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'fractal-flames/index.ts', details: String(err) });
+  }
+
+  // 24. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;

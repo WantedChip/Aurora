@@ -289,6 +289,16 @@ export class MiniPreviewManager {
         return { rot: 0 };
       case 'kaleidoscope':
         return { rot: 0, scale: 1 };
+      case 'fractal-flames': {
+        const points: { x: number; y: number }[] = [];
+        for (let i = 0; i < 90; i++) {
+          points.push({
+            x: prng.nextFloat(-1, 1),
+            y: prng.nextFloat(-1, 1),
+          });
+        }
+        return { points, rot: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -720,6 +730,40 @@ export class MiniPreviewManager {
           ctx.lineTo(x1, y1);
           ctx.lineTo(x2, y2);
           ctx.stroke();
+        }
+        break;
+      }
+
+      case 'fractal-flames': {
+        state.rot += dt * (isHovered ? 1.4 : 0.4);
+        ctx.fillStyle = 'rgba(13, 15, 20, 0.25)';
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2;
+        const scale = Math.min(w, h) * 0.38;
+        const cosR = Math.cos(state.rot);
+        const sinR = Math.sin(state.rot);
+
+        for (let i = 0; i < state.points.length; i++) {
+          const pt = state.points[i];
+          const r2 = pt.x * pt.x + pt.y * pt.y + 0.05;
+          const nx = pt.x * Math.sin(r2) - pt.y * Math.cos(r2);
+          const ny = pt.x * Math.cos(r2) + pt.y * Math.sin(r2);
+          pt.x = nx * 0.72 + (Math.random() - 0.5) * 0.08;
+          pt.y = ny * 0.72 + (Math.random() - 0.5) * 0.08;
+          if (Math.abs(pt.x) > 2 || Math.abs(pt.y) > 2) {
+            pt.x = (Math.random() - 0.5) * 1.2;
+            pt.y = (Math.random() - 0.5) * 1.2;
+          }
+
+          const rx = pt.x * cosR - pt.y * sinR;
+          const ry = pt.x * sinR + pt.y * cosR;
+          const px = cx + rx * scale;
+          const py = cy + ry * scale;
+
+          ctx.fillStyle = i % 2 === 0 ? '#00F0FF' : '#FF2A6D';
+          ctx.fillRect(px, py, 1.5, 1.5);
         }
         break;
       }

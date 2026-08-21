@@ -2531,6 +2531,168 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'trebleReaction', label: 'Treble Reaction (Ant Glow)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 26
+  {
+    id: 'hydraulic-erosion',
+    index: 26,
+    indexDisplay: '#26',
+    name: 'Hydraulic Erosion Terrain',
+    category: 'morphogenesis',
+    categoryName: 'Morphogenesis & Landscape',
+    backend: 'webgl2',
+    backendDisplay: 'WEBGL 3D',
+    mathModel: 'Particle-Droplet Fluvial Erosion & fBm Alpine Displacement',
+    description: 'Procedural 3D alpine landscapes sculpted by particle-droplet hydraulic erosion simulation with slope-dependent fluvial transport and alluvial fans.',
+    curatorialNote: 'Simulates the natural geomorphological sculpting of mountain ranges over geological timescales through fluid advection, slope shearing, sediment deposition, and solar illumination.',
+    tags: ['hydraulic-erosion', 'terrain', 'heightmap', 'fluvial', 'geomorphology', 'fbm', 'procedural', '3d', 'threejs', 'mountains', 'sediment', 'canyons', 'alluvial'],
+    moods: ['monumental', 'geological', 'meditative', 'natural', 'atmospheric', 'majestic'],
+    defaultParams: {
+      seed: '#00FF9D',
+      preset: 'alpine-peaks',
+      gridResolution: 256,
+      heightScale: 48.0,
+      noiseOctaves: 6,
+      noiseRoughness: 0.52,
+      ridgePower: 1.8,
+      mountainScale: 1.0,
+      dropletsPerFrame: 1200,
+      erosionRate: 0.12,
+      depositionRate: 0.10,
+      sedimentCapacity: 4.0,
+      evaporationRate: 0.02,
+      gravity: 12.0,
+      inertia: 0.15,
+      minSlope: 0.01,
+      maxLifetime: 32,
+      talusSmoothing: 0.02,
+      waterLevel: 0.14,
+      waterOpacity: 0.75,
+      riverGlow: 1.5,
+      sunAzimuth: 45.0,
+      sunElevation: 42.0,
+      sunIntensity: 1.6,
+      colorPalette: 'obsidian-alpine',
+      rockSlopeThreshold: 0.72,
+      snowElevation: 0.65,
+      cameraView: 'isometric-3d',
+      cameraAutoRotate: false,
+      rotationSpeed: 0.25,
+      pointerMode: 'rain-cloud',
+      brushRadius: 22,
+      brushStrength: 1.2,
+      audioSource: 'synth',
+      audioSensitivity: 1.0,
+      bassReaction: 1.5,
+      midReaction: 1.0,
+      trebleReaction: 1.4,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Landscape Preset',
+        type: 'select',
+        options: [
+          { label: 'Alpine Peaks (Glacial Cirques)', value: 'alpine-peaks' },
+          { label: 'Grand Canyon (Layered Strata)', value: 'grand-canyon' },
+          { label: 'Volcanic Caldera (Cone & Crater)', value: 'volcanic-caldera' },
+          { label: 'River Delta (Alluvial Plains)', value: 'river-delta' },
+          { label: 'Fjords & Glacier (Sea Cliffs)', value: 'fjords-glacier' },
+          { label: 'Desert Mesa (Terraced Plateaus)', value: 'desert-mesa' },
+          { label: 'Alien Archipelago (Spire Islands)', value: 'alien-archipelago' },
+        ],
+        folder: 'Morphology & Presets',
+      },
+      { key: 'mountainScale', label: 'Mountain Scale', type: 'slider', min: 0.5, max: 2.5, step: 0.1, folder: 'Morphology & Presets' },
+      { key: 'ridgePower', label: 'Ridge Spine Sharpness', type: 'slider', min: 0.8, max: 3.0, step: 0.1, folder: 'Morphology & Presets' },
+      { key: 'noiseOctaves', label: 'fBm Noise Octaves', type: 'slider', min: 2, max: 8, step: 1, folder: 'Morphology & Presets' },
+      { key: 'noiseRoughness', label: 'fBm Lacunarity Roughness', type: 'slider', min: 0.3, max: 0.7, step: 0.02, folder: 'Morphology & Presets' },
+
+      { key: 'dropletsPerFrame', label: 'Rain Droplets / Frame', type: 'slider', min: 200, max: 3000, step: 100, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'erosionRate', label: 'Erosion Strength (Ke)', type: 'slider', min: 0.01, max: 0.40, step: 0.01, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'depositionRate', label: 'Deposition Rate (Kd)', type: 'slider', min: 0.01, max: 0.30, step: 0.01, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'sedimentCapacity', label: 'Sediment Capacity (Kc)', type: 'slider', min: 1.0, max: 10.0, step: 0.5, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'evaporationRate', label: 'Evaporation Rate', type: 'slider', min: 0.005, max: 0.10, step: 0.005, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'inertia', label: 'Droplet Inertia / Momentum', type: 'slider', min: 0.0, max: 0.5, step: 0.02, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'gravity', label: 'Downhill Gravity', type: 'slider', min: 4.0, max: 25.0, step: 1.0, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'maxLifetime', label: 'Max Droplet Steps', type: 'slider', min: 10, max: 64, step: 2, folder: 'Hydraulic Fluvial Engine' },
+      { key: 'talusSmoothing', label: 'Thermal Talus Smoothing', type: 'slider', min: 0.0, max: 0.08, step: 0.005, folder: 'Hydraulic Fluvial Engine' },
+
+      { key: 'heightScale', label: 'Terrain Vertical Scale', type: 'slider', min: 10.0, max: 90.0, step: 2.0, folder: 'Relief & Water' },
+      { key: 'waterLevel', label: 'Sea / Lake Water Level', type: 'slider', min: 0.0, max: 0.5, step: 0.02, folder: 'Relief & Water' },
+      { key: 'waterOpacity', label: 'Water Transparency', type: 'slider', min: 0.2, max: 1.0, step: 0.05, folder: 'Relief & Water' },
+      { key: 'riverGlow', label: 'Fluvial River Glow', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Relief & Water' },
+
+      {
+        key: 'colorPalette',
+        label: 'Curatorial Palette',
+        type: 'select',
+        options: [
+          { label: 'Obsidian Alpine (Basalt / Snow)', value: 'obsidian-alpine' },
+          { label: 'Spectral Aurora (Cyan / Violet)', value: 'spectral-aurora' },
+          { label: 'Canyon Terracotta (Sandstone / Ochre)', value: 'canyon-terracotta' },
+          { label: 'Volcanic Magma (Ash / Lava)', value: 'volcanic-magma' },
+          { label: 'Bioluminescent Abyss (Marine / Cyan)', value: 'bioluminescent-abyss' },
+          { label: 'Monochrome Lithic (Slate / Silver)', value: 'monochrome-lithic' },
+          { label: 'Solar Dune (Golden Sand / Sunlit)', value: 'solar-dune' },
+        ],
+        folder: 'Atmosphere & Aesthetics',
+      },
+      { key: 'rockSlopeThreshold', label: 'Cliff Rock Slope Angle', type: 'slider', min: 0.4, max: 0.9, step: 0.02, folder: 'Atmosphere & Aesthetics' },
+      { key: 'snowElevation', label: 'Alpine Snowline Altitude', type: 'slider', min: 0.3, max: 0.9, step: 0.02, folder: 'Atmosphere & Aesthetics' },
+      { key: 'sunAzimuth', label: 'Sunlight Azimuth Angle', type: 'slider', min: 0.0, max: 360.0, step: 5.0, folder: 'Atmosphere & Aesthetics' },
+      { key: 'sunElevation', label: 'Sunlight Elevation Angle', type: 'slider', min: 10.0, max: 85.0, step: 2.0, folder: 'Atmosphere & Aesthetics' },
+      { key: 'sunIntensity', label: 'Sun Light Intensity', type: 'slider', min: 0.5, max: 3.0, step: 0.1, folder: 'Atmosphere & Aesthetics' },
+
+      {
+        key: 'cameraView',
+        label: 'Camera Viewpoint',
+        type: 'select',
+        options: [
+          { label: 'Isometric 3D (Default)', value: 'isometric-3d' },
+          { label: 'Top-Down Contours', value: 'top-down-contours' },
+          { label: 'Cinematic Valley', value: 'cinematic-valley' },
+          { label: 'Aerial Glide', value: 'aerial-glide' },
+        ],
+        folder: 'Camera & Navigation',
+      },
+      { key: 'cameraAutoRotate', label: 'Auto Orbit Rotation', type: 'boolean', folder: 'Camera & Navigation' },
+      { key: 'rotationSpeed', label: 'Rotation Speed', type: 'slider', min: 0.05, max: 1.5, step: 0.05, folder: 'Camera & Navigation' },
+
+      {
+        key: 'pointerMode',
+        label: 'Pointer Tool Mode',
+        type: 'select',
+        options: [
+          { label: 'Rain Cloud (Concentrated Storm)', value: 'rain-cloud' },
+          { label: 'Meteor Crater (Impact Rim)', value: 'meteor-crater' },
+          { label: 'Mountain Uplift (Sculpt Raise)', value: 'sculpt-raise' },
+          { label: 'Basin Excavator (Sculpt Lower)', value: 'sculpt-lower' },
+          { label: 'Thermal Relax (Smooth Slope)', value: 'thermal-smooth' },
+          { label: 'Disabled / Observation', value: 'none' },
+        ],
+        folder: 'Pointer Landscape Sculpting',
+      },
+      { key: 'brushRadius', label: 'Sculpt Brush Radius', type: 'slider', min: 5, max: 50, step: 1, folder: 'Pointer Landscape Sculpting' },
+      { key: 'brushStrength', label: 'Sculpt Brush Force', type: 'slider', min: 0.2, max: 3.0, step: 0.1, folder: 'Pointer Landscape Sculpting' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'bassReaction', label: 'Bass Reaction (Rain Bursts)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'midReaction', label: 'Mid Reaction (Sun / Water)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'trebleReaction', label: 'Treble Reaction (River Glow)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -2713,6 +2875,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'langtons-ant':
         modulePromise = import('./langtons-ant/index');
+        break;
+      case 'hydraulic-erosion':
+        modulePromise = import('./hydraulic-erosion/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

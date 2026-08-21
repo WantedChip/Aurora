@@ -385,6 +385,33 @@ export class MiniPreviewManager {
         ];
         return { gw, gh, grid, ants, t: 0 };
       }
+      case 'hydraulic-erosion': {
+        const cols = 28;
+        const rows = 18;
+        const heights = new Float32Array(cols * rows);
+        const rivers = new Float32Array(cols * rows);
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const nx = (c / cols - 0.5) * 2;
+            const ny = (r / rows - 0.5) * 2;
+            const dist = Math.hypot(nx, ny);
+            const ridge = Math.cos(dist * Math.PI * 1.2) * 0.5 + 0.5;
+            const noise = Math.sin(nx * 4.0 + ny * 3.0) * 0.25;
+            heights[r * cols + c] = Math.max(0, ridge + noise);
+          }
+        }
+        const droplets: { x: number; y: number; vx: number; vy: number; life: number }[] = [];
+        for (let i = 0; i < 20; i++) {
+          droplets.push({
+            x: prng.nextFloat(2, cols - 3),
+            y: prng.nextFloat(2, rows - 3),
+            vx: 0,
+            vy: 0,
+            life: prng.nextFloat(0, 1),
+          });
+        }
+        return { cols, rows, heights, rivers, droplets, t: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -1362,6 +1389,91 @@ export class MiniPreviewManager {
           ctx.beginPath();
           ctx.arc(ax, ay, 1.0, 0, Math.PI * 2);
           ctx.fill();
+        }
+
+        break;
+      }
+
+      case 'hydraulic-erosion': {
+        state.t += dt * (isHovered ? 2.0 : 1.0);
+        ctx.fillStyle = '#090A0D';
+        ctx.fillRect(0, 0, w, h);
+
+        const cols = state.cols;
+        const rows = state.rows;
+        const heights = state.heights;
+        const droplets = state.droplets;
+
+        // Step droplets downhill
+        for (const d of droplets) {
+          d.life += dt * 1.5;
+          if (d.life > 1.0) {
+            d.life = 0;
+            d.x = Math.random() * (cols - 4) + 2;
+            d.y = Math.random() * (rows - 4) + 2;
+          }
+
+          const ix = Math.floor(d.x);
+          const iy = Math.floor(d.y);
+          if (ix >= 1 && ix < cols - 2 && iy >= 1 && iy < rows - 2) {
+            const hL = heights[iy * cols + (ix - 1)];
+            const hR = heights[iy * cols + (ix + 1)];
+            const hU = heights[(iy - 1) * cols + ix];
+            const hD = heights[(iy + 1) * cols + ix];
+
+            const gx = hR - hL;
+            const gy = hD - hU;
+            d.vx = d.vx * 0.6 - gx * 0.4;
+            d.vy = d.vy * 0.6 - gy * 0.4;
+
+            d.x += d.vx * 1.2;
+            d.y += d.vy * 1.2;
+
+            // Carve sediment / mark river path
+            const idx = iy * cols + ix;
+            state.rivers[idx] = Math.min(1.0, state.rivers[idx] + 0.05);
+          }
+        }
+
+        // Render layered isometric mountain ridge ribbons
+        const originX = w * 0.5;
+        const originY = h * 0.22;
+        const cellW = (w * 0.8) / cols;
+        const cellH = (h * 0.5) / rows;
+
+        for (let r = 0; r < rows; r++) {
+          ctx.beginPath();
+          for (let c = 0; c < cols; c++) {
+            const hVal = heights[r * cols + c];
+            const px = originX + (c - cols * 0.5) * cellW * 1.1 - (r - rows * 0.5) * 1.5;
+            const py = originY + r * cellH + (1.0 - hVal) * 28;
+
+            if (c === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+
+          const alpha = isHovered ? 0.85 : 0.65;
+          ctx.strokeStyle = r % 3 === 0
+            ? `rgba(0, 255, 157, ${alpha})`
+            : `rgba(0, 240, 255, ${alpha * 0.5})`;
+          ctx.lineWidth = r % 3 === 0 ? 1.5 : 1.0;
+          ctx.stroke();
+        }
+
+        // Render glowing flowing droplets
+        ctx.fillStyle = '#00F0FF';
+        for (const d of droplets) {
+          const ix = Math.floor(d.x);
+          const iy = Math.floor(d.y);
+          if (ix >= 0 && ix < cols && iy >= 0 && iy < rows) {
+            const hVal = heights[iy * cols + ix];
+            const px = originX + (d.x - cols * 0.5) * cellW * 1.1 - (d.y - rows * 0.5) * 1.5;
+            const py = originY + d.y * cellH + (1.0 - hVal) * 28;
+
+            ctx.beginPath();
+            ctx.arc(px, py, isHovered ? 2.2 : 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
 
         break;

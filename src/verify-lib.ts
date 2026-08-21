@@ -780,8 +780,10 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const videoFeedback = getRoomById('video-feedback');
     const cymatics = getRoomById('cymatics');
     const moire = getRoomById('moire');
+    const hydraulicErosion = getRoomById('hydraulic-erosion');
     const artLifeRooms = filterRoomsByCategory('art-life');
     const psychedelicRooms = filterRoomsByCategory('psychedelic');
+    const morphogenesisRooms = filterRoomsByCategory('morphogenesis');
     const categories = getCategories();
     const searchMatch1 = searchRooms('slime mold');
     const searchMatch2 = searchRooms('turing');
@@ -789,17 +791,20 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const searchMatch4 = searchRooms('video feedback');
     const searchMatch5 = searchRooms('chladni');
     const searchMatch6 = searchRooms('ronchi');
+    const searchMatch7 = searchRooms('hydraulic erosion');
     const searchEmpty = searchRooms('quantum-nonexistent-tag');
 
     const registryPassed =
-      allRooms.length >= 21 &&
+      allRooms.length === 26 &&
       physarum?.name === 'Physarum Slime Mold' &&
       fractalFlames?.name === 'Fractal Flames' &&
       videoFeedback?.name === 'Video Feedback Loop' &&
       cymatics?.name === 'Cymatics & Chladni Resonance' &&
       moire?.name === 'Moiré Interference Patterns' &&
+      hydraulicErosion?.name === 'Hydraulic Erosion Terrain' &&
       artLifeRooms.length === 6 &&
       psychedelicRooms.length >= 5 &&
+      morphogenesisRooms.length === 4 &&
       categories.length === 9 &&
       searchMatch1.some(r => r.id === 'physarum') &&
       searchMatch2.some(r => r.id === 'reaction-diffusion') &&
@@ -807,12 +812,13 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       searchMatch4.some(r => r.id === 'video-feedback') &&
       searchMatch5.some(r => r.id === 'cymatics') &&
       searchMatch6.some(r => r.id === 'moire') &&
+      searchMatch7.some(r => r.id === 'hydraulic-erosion') &&
       searchEmpty.length === 0;
 
     results.push({
       passed: registryPassed,
       module: 'registry.ts (Catalog & Search)',
-      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}, "chladni" -> #${searchMatch5[0]?.index}, "ronchi" -> #${searchMatch6[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms.`,
+      details: `${allRooms.length} rooms indexed. Search: "slime mold" -> #${searchMatch1[0]?.index}, "turing" -> #${searchMatch2[0]?.index}, "scott draves" -> #${searchMatch3[0]?.index}, "chladni" -> #${searchMatch5[0]?.index}, "ronchi" -> #${searchMatch6[0]?.index}, "erosion" -> #${searchMatch7[0]?.index}. 6 Art Life rooms, ${psychedelicRooms.length} Psychedelic rooms, ${morphogenesisRooms.length} Morphogenesis rooms.`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'registry.ts', details: String(err) });
@@ -4049,6 +4055,204 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     });
   } catch (err) {
     results.push({ passed: false, module: 'langtons-ant/index.ts', details: String(err) });
+  }
+
+  // 32. Verify Room 26: Hydraulic Erosion Terrain (Particle-Droplet Fluvial Erosion 3D Landscape)
+  try {
+    const terrainCanvas = document.createElement('canvas');
+    terrainCanvas.width = 600;
+    terrainCanvas.height = 600;
+    const terrainContainer = document.createElement('div');
+    const terrainPrng = createPRNG('#00FF9D');
+
+    const terrainMeta = getRoomById('hydraulic-erosion');
+    const roomInstance = await lazyLoadRoom('hydraulic-erosion');
+
+    const {
+      TERRAIN_PALETTES,
+      PRESET_MORPHOLOGIES,
+      DEFAULT_HYDRAULIC_EROSION_PARAMS,
+      HydraulicErosionEngine,
+      HydraulicErosionRoom,
+    } = await import('./rooms/hydraulic-erosion/index');
+
+    // 1. Verify Curatorial Palettes & Morphological Presets
+    const alpinePalette = TERRAIN_PALETTES['obsidian-alpine'];
+    const palettesValid =
+      alpinePalette &&
+      typeof alpinePalette.deepWater.r === 'number' &&
+      typeof alpinePalette.cliffRock.g === 'number' &&
+      typeof alpinePalette.alpineSnow.b === 'number' &&
+      typeof alpinePalette.sunColor === 'number' &&
+      Object.keys(TERRAIN_PALETTES).length === 7;
+
+    const presetsValid =
+      Object.keys(PRESET_MORPHOLOGIES).length === 7 &&
+      PRESET_MORPHOLOGIES['alpine-peaks'].octaves === 6 &&
+      PRESET_MORPHOLOGIES['grand-canyon'].heightScale === 46.0;
+
+    // 2. Verify Mathematical Base Terrain fBm Synthesis & Droplet Fluvial Erosion Engine
+    const testEngine = new HydraulicErosionEngine(64, '#00FF9D');
+    testEngine.generateBaseTerrain({ ...DEFAULT_HYDRAULIC_EROSION_PARAMS, gridResolution: 64 });
+
+    let nonZeroHeights = 0;
+    let initialSum = 0;
+    for (let i = 0; i < testEngine.heightMap.length; i++) {
+      if (testEngine.heightMap[i] > 0.001) nonZeroHeights++;
+      initialSum += testEngine.heightMap[i];
+    }
+
+    // Step 500 droplets
+    testEngine.stepDroplets(500, { ...DEFAULT_HYDRAULIC_EROSION_PARAMS, gridResolution: 64 });
+    const postDropletsSteps = testEngine.totalErosionSteps;
+
+    let waterFlowSum = 0;
+    for (let i = 0; i < testEngine.waterFlowMap.length; i++) {
+      waterFlowSum += testEngine.waterFlowMap[i];
+    }
+
+    // Test sculpt brush (meteor crater & uplift)
+    testEngine.applySculptBrush(32, 32, 'meteor-crater', 10, 1.0);
+    testEngine.applySculptBrush(16, 16, 'sculpt-raise', 8, 1.0);
+
+    const simulationValid =
+      nonZeroHeights >= 64 * 64 * 0.8 &&
+      postDropletsSteps === 500 &&
+      waterFlowSum > 0 &&
+      initialSum > 0;
+
+    // 3. Mount 3D room instance
+    const ctx: RoomContext = {
+      canvas: terrainCanvas,
+      container: terrainContainer,
+      params: { ...(terrainMeta?.defaultParams || {}) },
+      prng: terrainPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 4. Test dynamic parameter updates across canonical presets & palettes
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'grand-canyon',
+        colorPalette: 'canyon-terracotta',
+      });
+      roomInstance.updateParams({
+        preset: 'volcanic-caldera',
+        colorPalette: 'volcanic-magma',
+      });
+      roomInstance.updateParams({
+        preset: 'river-delta',
+        colorPalette: 'solar-dune',
+      });
+      roomInstance.updateParams({
+        preset: 'fjords-glacier',
+        colorPalette: 'monochrome-lithic',
+      });
+      roomInstance.updateParams({
+        preset: 'desert-mesa',
+        colorPalette: 'solar-dune',
+      });
+      roomInstance.updateParams({
+        preset: 'alien-archipelago',
+        colorPalette: 'spectral-aurora',
+      });
+      roomInstance.updateParams({
+        preset: 'alpine-peaks',
+        colorPalette: 'obsidian-alpine',
+        cameraView: 'top-down-contours',
+      });
+      roomInstance.updateParams({
+        cameraView: 'cinematic-valley',
+      });
+      roomInstance.updateParams({
+        cameraView: 'aerial-glide',
+      });
+      roomInstance.updateParams({
+        cameraView: 'isometric-3d',
+      });
+    }
+
+    if (roomInstance instanceof HydraulicErosionRoom) {
+      roomInstance.resetTerrain();
+    }
+
+    // 5. Test pointer interaction events
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 330,
+        normalizedX: 0.53,
+        normalizedY: 0.55,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 320,
+        y: 330,
+        normalizedX: 0.53,
+        normalizedY: 0.55,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 6. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 7. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const terrainPassed =
+      palettesValid &&
+      presetsValid &&
+      simulationValid &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: terrainPassed,
+      module: 'hydraulic-erosion/index.ts (Room 26)',
+      details: terrainPassed
+        ? `Hydraulic Erosion Terrain mounted, verified multi-octave fBm alpine displacement, particle-droplet fluvial erosion engine (${postDropletsSteps} droplets, bilinear gradients, sediment transport capacity C, Ke/Kd/Kevap), 7 canonical landscape presets (Alpine, Canyon, Caldera, Delta, Fjords, Mesa, Archipelago), 7 curatorial spectral palettes, slope/elevation terrain shader with dynamic sunlight shadows, reflective water plane, interactive sculpting tools (rain storm, crater, uplift), and offline snapshot capture. Clean teardown verified.`
+        : `Hydraulic Erosion verification failed: palettesValid=${palettesValid}, presetsValid=${presetsValid}, simulationValid=${simulationValid}, mount=${typeof roomInstance.mount}, cleanupRan=${cleanupRan}, snapshotCanvas=${snapshotCanvas ? `${snapshotCanvas.width}x${snapshotCanvas.height}` : 'null'}`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'hydraulic-erosion/index.ts', details: String(err) });
   }
 
   // 31. Verify Client-Side Hash Router

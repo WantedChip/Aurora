@@ -301,7 +301,7 @@ export class GalleryView {
         <!-- Hero Section: Ambient Simulation & Masthead -->
         <section class="hero-section" id="hero-section" aria-label="Introduction">
           <div class="hero-canvas-container">
-            <canvas id="hero-ambient-canvas" class="hero-ambient-canvas"></canvas>
+            <canvas id="hero-ambient-canvas" class="hero-ambient-canvas" role="img" aria-label="Ambient Interactive Observatory Flow Canvas"></canvas>
             <div class="hero-gradient-overlay"></div>
           </div>
 
@@ -315,17 +315,17 @@ export class GalleryView {
             <h2 class="hero-subtitle">Real-Time Generative Systems &amp; WebGPU Compute Gallery</h2>
 
             <p class="hero-description">
-              Explore 16 deterministic algorithmic chambers powered by Three.js TSL shaders,
+              Explore ${ROOM_CATALOG.length} deterministic algorithmic chambers powered by Three.js TSL shaders,
               WebGPU compute agent systems, and Navier-Stokes mathematical dynamics.
               Zero backend, pure static client execution.
             </p>
 
             <div class="hero-actions">
-              <button type="button" class="hero-btn-primary" id="hero-btn-explore">
+              <button type="button" class="hero-btn-primary" id="hero-btn-explore" aria-label="Explore exhibits (scroll down to catalog)">
                 <span>⚡ Explore Exhibits ↓</span>
               </button>
 
-              <button type="button" class="hero-btn-secondary" id="hero-btn-random">
+              <button type="button" class="hero-btn-secondary" id="hero-btn-random" aria-label="Open random exhibit chamber with fresh seed">
                 <span>🎲 Random Room &amp; Seed</span>
               </button>
             </div>
@@ -337,7 +337,7 @@ export class GalleryView {
               </div>
               <div class="telemetry-chip">
                 <span class="telemetry-dot"></span>
-                <span>16 ROOMS REGISTERED</span>
+                <span>${ROOM_CATALOG.length} ROOMS REGISTERED</span>
               </div>
               <div class="telemetry-chip">
                 <span class="telemetry-dot"></span>
@@ -604,7 +604,7 @@ export class GalleryView {
 
         <!-- Controls Row: Search Input & Layout Switcher -->
         <div class="toolbar-controls-row">
-          <div class="search-input-wrapper">
+          <div class="search-input-wrapper" role="search">
             <span class="search-icon" aria-hidden="true">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -618,11 +618,12 @@ export class GalleryView {
               placeholder="Filter by algorithm, technique, or math... (Press '/' to search)"
               aria-label="Filter exhibits by title, algorithm, tech, or tags"
               aria-controls="exhibit-grid"
+              aria-keyshortcuts="/"
               autocomplete="off"
               spellcheck="false"
               value="${this.searchQuery}"
             />
-            <button type="button" id="search-clear-btn" class="search-clear-btn" aria-label="Clear search" style="${
+            <button type="button" id="search-clear-btn" class="search-clear-btn" aria-label="Clear search query" style="${
               this.searchQuery ? 'display: flex;' : 'display: none;'
             }">✕</button>
             <kbd class="search-shortcut-hint" aria-hidden="true">/</kbd>
@@ -1050,8 +1051,10 @@ export class GalleryView {
         }
 
         // Focus search on '/' (unless already in input or modal open)
-        const target = e.target as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+        const target = (e?.target || null) as HTMLElement | null;
+        const isInput =
+          target && typeof target.tagName === 'string' &&
+          (target.tagName.toUpperCase() === 'INPUT' || target.tagName.toUpperCase() === 'TEXTAREA');
 
         if (!isInput && !this.isModalOpen && e.key === '/') {
           e.preventDefault();

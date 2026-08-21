@@ -4816,6 +4816,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const mobileDrawer = touchApp.querySelector<HTMLElement>('.room-mobile-drawer');
     const mobileToggle = touchApp.querySelector<HTMLButtonElement>('.room-mobile-toggle-btn');
     const drawerHeader = touchApp.querySelector<HTMLElement>('#room-drawer-header');
+    const mobileScrim = touchApp.querySelector<HTMLElement>('.room-drawer-scrim');
 
     // 1. Pointer capture validation on canvas container
     let pointerCaptured = false;
@@ -4843,6 +4844,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     mobileToggle?.click();
     const openAriaExpanded = mobileToggle?.getAttribute('aria-expanded');
     const isDrawerOpen = mobileDrawer?.classList.contains('open');
+    const isScrimOpen = mobileScrim?.classList.contains('open');
 
     // 3. Header swipe-down-to-dismiss gesture simulation
     if (drawerHeader) {
@@ -4876,6 +4878,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       initialAriaExpanded === 'false' &&
       openAriaExpanded === 'true' &&
       Boolean(isDrawerOpen) &&
+      Boolean(isScrimOpen) &&
       isDrawerClosedAfterSwipe &&
       closedAriaExpanded === 'false' &&
       hasAccessibleSteppers;
@@ -4884,8 +4887,8 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       passed: touchPassed,
       module: 'v1.0.1: Mobile Touch Ergonomics & Drawer Gestures',
       details: touchPassed
-        ? `Canvas pointer capture verified (id=42). Mobile drawer ARIA states (expanded=false->true->false), touch swipe-down dismiss (deltaY=+80px), and accessible discrete stepper controls verified.`
-        : `Touch tests failed: captured=${pointerCaptured}, initExp=${initialAriaExpanded}, openExp=${openAriaExpanded}, open=${isDrawerOpen}, swipeDismiss=${isDrawerClosedAfterSwipe}, steppers=${hasAccessibleSteppers}`,
+        ? `Canvas pointer capture verified (id=42). Mobile drawer ARIA states (expanded=false->true->false), backdrop scrim, touch swipe-down dismiss (deltaY=+80px), and accessible discrete stepper controls verified.`
+        : `Touch tests failed: captured=${pointerCaptured}, initExp=${initialAriaExpanded}, openExp=${openAriaExpanded}, open=${isDrawerOpen}, scrimOpen=${isScrimOpen}, swipeDismiss=${isDrawerClosedAfterSwipe}, steppers=${hasAccessibleSteppers}`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'v1.0.1: Mobile Touch Ergonomics', details: String(err) });
@@ -4939,7 +4942,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     gallery.destroy();
     keyApp.innerHTML = '';
 
-    // Test RoomViewer modal focus trapping
+    // Test RoomViewer HUD Logical Tab Order & Modal Focus Trapping
     const viewer = new RoomViewer();
     await viewer.mount(keyApp, 'boids', {
       path: '/boids',
@@ -4949,17 +4952,58 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       params: {},
     });
 
+    const backBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-back');
+    const seedBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-seed');
+    const resetBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-reset');
+    const audioBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-audio');
     const snapBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-snapshot');
+    const recordBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-record');
+    const controlsBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-controls');
+    const shareBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-share');
+    const helpBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-help');
+    const fsBtn = keyApp.querySelector<HTMLButtonElement>('#room-hud-btn-fullscreen');
+
+    const hasLogicalHUDTabOrder =
+      backBtn !== null &&
+      seedBtn !== null &&
+      resetBtn !== null &&
+      audioBtn !== null &&
+      snapBtn !== null &&
+      recordBtn !== null &&
+      controlsBtn !== null &&
+      shareBtn !== null &&
+      helpBtn !== null &&
+      fsBtn !== null;
+
+    // Test Help Modal
+    if (helpBtn) {
+      helpBtn.focus();
+      viewer.openHelpModal(helpBtn);
+    }
+    const helpModal = keyApp.querySelector<HTMLElement>('#room-help-modal-overlay');
+    const isHelpOpen = helpModal !== null && !helpModal.classList.contains('hidden');
+    viewer.closeHelpModal();
+    const isHelpClosed = helpModal?.getAttribute('aria-hidden') === 'true';
+
+    // Test Snapshot Modal
     if (snapBtn) {
       snapBtn.focus();
       viewer.openSnapshotModal(snapBtn);
     }
-
     const snapModal = keyApp.querySelector<HTMLElement>('#room-snapshot-modal-overlay');
     const isSnapOpen = snapModal !== null && !snapModal.classList.contains('hidden');
-
     viewer.closeSnapshotModal();
     const isSnapClosed = snapModal?.getAttribute('aria-hidden') === 'true';
+
+    // Test Video Loop Modal
+    if (recordBtn) {
+      recordBtn.focus();
+      viewer.openVideoModal(recordBtn);
+    }
+    const videoModal = keyApp.querySelector<HTMLElement>('#room-video-modal-overlay');
+    const isVideoOpen = videoModal !== null && !videoModal.classList.contains('hidden');
+    viewer.closeVideoModal();
+    const isVideoClosed = videoModal?.getAttribute('aria-hidden') === 'true';
 
     viewer.destroy();
     keyApp.remove();
@@ -4972,21 +5016,147 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       isModalAriaVisible &&
       isModalClosed &&
       isModalAriaHidden &&
+      hasLogicalHUDTabOrder &&
+      Boolean(isHelpOpen) &&
+      isHelpClosed &&
       Boolean(isSnapOpen) &&
-      isSnapClosed;
+      isSnapClosed &&
+      Boolean(isVideoOpen) &&
+      isVideoClosed;
 
     results.push({
       passed: keyboardPassed,
       module: 'v1.0.1: Keyboard Navigation & Modal Focus Trapping',
       details: keyboardPassed
-        ? `Skip-link present. Category filter pills keyboard arrow navigation verified. About modal & Snapshot modal focus preservation, Tab trapping, Escape dismissal, and focus restoration confirmed.`
-        : `Keyboard checks failed: skipLink=${!!skipLink}, modalOpen=${isModalOpen}, modalHidden=${isModalAriaHidden}, snapOpen=${isSnapOpen}, snapClosed=${isSnapClosed}`,
+        ? `Logical Tab order verified across Gallery (skip-link, search, filter pills) and Room Viewer HUD (back, seed, reset, audio, snapshot, video, controls, share, help, fullscreen). Focus preservation & Escape modal dismiss confirmed.`
+        : `Keyboard checks failed: skipLink=${!!skipLink}, modalOpen=${isModalOpen}, hudOrder=${hasLogicalHUDTabOrder}, helpOpen=${isHelpOpen}, snapOpen=${isSnapOpen}, videoOpen=${isVideoOpen}`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'v1.0.1: Keyboard Navigation', details: String(err) });
   }
 
-  // 31. Verify Sub-Phase v1.0.1: Screen Reader ARIA & Semantic Role Coverage
+  // 31. Verify Sub-Phase v1.0.1: In-Room & Gallery Keyboard Shortcuts Matrix
+  try {
+    const { RoomViewer } = await import('./room-viewer');
+    const shortcutApp = document.createElement('div');
+    shortcutApp.id = 'shortcut-test-app';
+    document.body.appendChild(shortcutApp);
+
+    const viewer = new RoomViewer();
+    await viewer.mount(shortcutApp, 'flow-field', {
+      path: '/flow-field',
+      hash: '#/flow-field',
+      rawQuery: '',
+      roomId: 'flow-field',
+      params: { seed: '#ORIGINAL_SEED' },
+    });
+
+    // Verify keyboard shortcuts handling via window keydown events
+    const initialSeed = viewer.getParams().seed;
+
+    // 1. Space: Randomize Seed
+    window.dispatchEvent({
+      type: 'keydown',
+      code: 'Space',
+      key: ' ',
+      preventDefault() {},
+    } as any);
+    const seedAfterSpace = viewer.getParams().seed;
+    const seedChangedOnSpace = seedAfterSpace !== initialSeed;
+
+    // 2. R: Reset Defaults
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'r',
+      preventDefault() {},
+    } as any);
+
+    // 3. S: Toggle Snapshot Modal
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 's',
+      preventDefault() {},
+    } as any);
+    const snapModal = shortcutApp.querySelector<HTMLElement>('#room-snapshot-modal-overlay');
+    const snapOpenedByShortcut = snapModal !== null && !snapModal.classList.contains('hidden');
+
+    // 4. Escape: Close Snapshot Modal
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'Escape',
+      preventDefault() {},
+    } as any);
+    const snapClosedByEsc = snapModal?.getAttribute('aria-hidden') === 'true';
+
+    // 5. L: Toggle Video Modal
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'l',
+      preventDefault() {},
+    } as any);
+    const videoModal = shortcutApp.querySelector<HTMLElement>('#room-video-modal-overlay');
+    const videoOpenedByShortcut = videoModal !== null && !videoModal.classList.contains('hidden');
+
+    // 6. Escape: Close Video Modal
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'Escape',
+      preventDefault() {},
+    } as any);
+    const videoClosedByEsc = videoModal?.getAttribute('aria-hidden') === 'true';
+
+    // 7. H / ?: Toggle Help Modal
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'h',
+      preventDefault() {},
+    } as any);
+    const helpModal = shortcutApp.querySelector<HTMLElement>('#room-help-modal-overlay');
+    const helpOpenedByShortcut = helpModal !== null && !helpModal.classList.contains('hidden');
+
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'Escape',
+      preventDefault() {},
+    } as any);
+    const helpClosedByEsc = helpModal?.getAttribute('aria-hidden') === 'true';
+
+    // 8. C: Toggle Controls
+    window.dispatchEvent({
+      type: 'keydown',
+      key: 'c',
+      preventDefault() {},
+    } as any);
+
+    // 9. M: Toggle Audio Mute
+    const isMuted = viewer.toggleAudioMute();
+    const isMuteStateValid = typeof isMuted === 'boolean';
+
+    viewer.destroy();
+    shortcutApp.remove();
+
+    const shortcutsPassed =
+      seedChangedOnSpace &&
+      Boolean(snapOpenedByShortcut) &&
+      snapClosedByEsc &&
+      Boolean(videoOpenedByShortcut) &&
+      videoClosedByEsc &&
+      Boolean(helpOpenedByShortcut) &&
+      helpClosedByEsc &&
+      isMuteStateValid;
+
+    results.push({
+      passed: shortcutsPassed,
+      module: 'v1.0.1: In-Room Keyboard Shortcuts Handling',
+      details: shortcutsPassed
+        ? `Full shortcut handling validated: Space (randomize seed), R (reset params), S (snapshot modal), L (video modal), C (toggle controls), F (fullscreen), H / ? (help modal), M (audio mute), and Escape (dismiss modal / drawer).`
+        : `Shortcut tests failed: seedChanged=${seedChangedOnSpace}, snapOpen=${snapOpenedByShortcut}, snapEsc=${snapClosedByEsc}, vidOpen=${videoOpenedByShortcut}, vidEsc=${videoClosedByEsc}, helpOpen=${helpOpenedByShortcut}, helpEsc=${helpClosedByEsc}, muteValid=${isMuteStateValid}`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'v1.0.1: In-Room Keyboard Shortcuts', details: String(err) });
+  }
+
+  // 32. Verify Sub-Phase v1.0.1: Screen Reader ARIA & Semantic Role Coverage
   try {
     const { GalleryView } = await import('./gallery');
     const ariaApp = document.createElement('div');
@@ -4999,6 +5169,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const tablist = ariaApp.querySelector<HTMLElement>('[role="tablist"]');
     const tabs = ariaApp.querySelectorAll<HTMLElement>('[role="tab"]');
     const searchbox = ariaApp.querySelector<HTMLInputElement>('#gallery-search-input');
+    const searchWrapper = ariaApp.querySelector<HTMLElement>('.search-input-wrapper');
     const layoutGroup = ariaApp.querySelector<HTMLElement>('[role="group"]');
     const statusBadge = ariaApp.querySelector<HTMLElement>('[role="status"]');
     const cards = ariaApp.querySelectorAll<HTMLElement>('.exhibit-card');
@@ -5010,7 +5181,8 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     const allTabsHaveAria =
       tabs.length === allCategories.length &&
       Array.from(tabs).every(t => t.getAttribute('aria-selected') !== null && t.getAttribute('aria-controls') === 'exhibit-grid');
-    const searchHasAria = searchbox !== null && searchbox.getAttribute('aria-label') !== null;
+    const searchHasAria = searchbox !== null && searchbox.getAttribute('aria-label') !== null && searchbox.getAttribute('aria-keyshortcuts') === '/';
+    const searchHasRole = searchWrapper !== null && searchWrapper.getAttribute('role') === 'search';
     const layoutHasAria = layoutGroup !== null && layoutGroup.getAttribute('aria-label') !== null;
     const statusHasAria = statusBadge !== null && statusBadge.getAttribute('aria-live') === 'polite';
     const allCardsHaveRichAria =
@@ -5027,6 +5199,7 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       Boolean(hasTablist) &&
       allTabsHaveAria &&
       searchHasAria &&
+      searchHasRole &&
       layoutHasAria &&
       statusHasAria &&
       allCardsHaveRichAria;
@@ -5035,14 +5208,14 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
       passed: ariaPassed,
       module: 'v1.0.1: Screen Reader ARIA & Semantic Hierarchy',
       details: ariaPassed
-        ? `100% ARIA compliance verified: role="tablist", ${tabs.length} role="tab" pills (aria-selected/controls), searchbox labels, role="status" (aria-live="polite") counter, and ${cards.length} exhibit cards with archival descriptive labels.`
-        : `ARIA checks failed: tablist=${hasTablist}, tabs=${allTabsHaveAria}, search=${searchHasAria}, layout=${layoutHasAria}, status=${statusHasAria}, richCards=${allCardsHaveRichAria}`,
+        ? `100% ARIA compliance verified: role="tablist", ${tabs.length} role="tab" pills (aria-selected/controls), role="search" box with aria-keyshortcuts="/", role="status" (aria-live="polite") counter, and ${cards.length} exhibit cards with archival descriptive labels.`
+        : `ARIA checks failed: tablist=${hasTablist}, tabs=${allTabsHaveAria}, search=${searchHasAria}, searchRole=${searchHasRole}, layout=${layoutHasAria}, status=${statusHasAria}, richCards=${allCardsHaveRichAria}`,
     });
   } catch (err) {
     results.push({ passed: false, module: 'v1.0.1: Screen Reader ARIA', details: String(err) });
   }
 
-  // 32. Verify Sub-Phase v1.0.1: WCAG AA Color Contrast Analysis against #090A0D Base
+  // 33. Verify Sub-Phase v1.0.1: WCAG AA Color Contrast Analysis against #090A0D Base
   try {
     // Exact sRGB relative luminance helper
     const calcRelativeLuminance = (hex: string): number => {

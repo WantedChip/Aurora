@@ -55,9 +55,10 @@ export class RoomViewer {
   private activeToastElement: HTMLElement | null = null;
   private toastTimer: number | null = null;
 
-  // Export Modals
+  // Export & Help Modals
   private snapshotModal: HTMLElement | null = null;
   private videoModal: HTMLElement | null = null;
+  private helpModal: HTMLElement | null = null;
   private modalTriggerElement: HTMLElement | null = null;
   private activeSnapshotScale: 1 | 2 | 4 = 2;
   private activeSnapshotFormat: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png';
@@ -304,6 +305,11 @@ export class RoomViewer {
       this.videoModal = null;
     }
 
+    if (this.helpModal && this.helpModal.parentNode) {
+      this.helpModal.parentNode.removeChild(this.helpModal);
+      this.helpModal = null;
+    }
+
     if (this.micPermissionModal && this.micPermissionModal.parentNode) {
       this.micPermissionModal.parentNode.removeChild(this.micPermissionModal);
       this.micPermissionModal = null;
@@ -427,6 +433,7 @@ export class RoomViewer {
     this.wakeHUD();
 
     const newSeed = generateRandomSeed();
+    this.activeParams.seed = newSeed;
     const seedPrng = createPRNG(newSeed);
     const targetParams: Record<string, any> = { ...this.activeParams, seed: newSeed };
 
@@ -598,10 +605,13 @@ export class RoomViewer {
    * Opens the High-Resolution Snapshot Export modal dialogue.
    */
   public openSnapshotModal(triggerEl?: HTMLElement | null): void {
-    if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+    if (this.helpModal && this.helpModal.getAttribute('aria-hidden') !== 'true') {
+      this.closeHelpModal();
+    }
+    if (this.videoModal && this.videoModal.getAttribute('aria-hidden') !== 'true') {
       this.closeVideoModal();
     }
-    if (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden')) {
+    if (this.micPermissionModal && this.micPermissionModal.getAttribute('aria-hidden') !== 'true') {
       this.closeMicPermissionModal();
     }
 
@@ -625,12 +635,12 @@ export class RoomViewer {
    * Closes the Snapshot modal dialogue.
    */
   public closeSnapshotModal(): void {
-    if (!this.snapshotModal || this.snapshotModal.classList.contains('hidden')) return;
+    if (!this.snapshotModal || this.snapshotModal.getAttribute('aria-hidden') === 'true') return;
 
     this.snapshotModal.classList.add('closing');
+    this.snapshotModal.classList.add('hidden');
     this.snapshotModal.setAttribute('aria-hidden', 'true');
     setTimeout(() => {
-      this.snapshotModal?.classList.add('hidden');
       this.snapshotModal?.classList.remove('closing');
     }, 180);
 
@@ -644,10 +654,13 @@ export class RoomViewer {
    * Opens the Video Loop Export modal dialogue.
    */
   public openVideoModal(triggerEl?: HTMLElement | null): void {
-    if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+    if (this.helpModal && this.helpModal.getAttribute('aria-hidden') !== 'true') {
+      this.closeHelpModal();
+    }
+    if (this.snapshotModal && this.snapshotModal.getAttribute('aria-hidden') !== 'true') {
       this.closeSnapshotModal();
     }
-    if (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden')) {
+    if (this.micPermissionModal && this.micPermissionModal.getAttribute('aria-hidden') !== 'true') {
       this.closeMicPermissionModal();
     }
 
@@ -670,7 +683,7 @@ export class RoomViewer {
    * Closes the Video Loop modal dialogue and cancels active recordings if any.
    */
   public closeVideoModal(): void {
-    if (!this.videoModal || this.videoModal.classList.contains('hidden')) return;
+    if (!this.videoModal || this.videoModal.getAttribute('aria-hidden') === 'true') return;
 
     if (this.isRecordingInProgress) {
       cancelVideoRecording();
@@ -678,9 +691,9 @@ export class RoomViewer {
     }
 
     this.videoModal.classList.add('closing');
+    this.videoModal.classList.add('hidden');
     this.videoModal.setAttribute('aria-hidden', 'true');
     setTimeout(() => {
-      this.videoModal?.classList.add('hidden');
       this.videoModal?.classList.remove('closing');
     }, 180);
 
@@ -694,10 +707,13 @@ export class RoomViewer {
    * Opens the Microphone Permission Dialogue Modal with privacy explainer.
    */
   public openMicPermissionModal(triggerEl?: HTMLElement | null): void {
-    if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+    if (this.helpModal && this.helpModal.getAttribute('aria-hidden') !== 'true') {
+      this.closeHelpModal();
+    }
+    if (this.snapshotModal && this.snapshotModal.getAttribute('aria-hidden') !== 'true') {
       this.closeSnapshotModal();
     }
-    if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+    if (this.videoModal && this.videoModal.getAttribute('aria-hidden') !== 'true') {
       this.closeVideoModal();
     }
 
@@ -720,12 +736,12 @@ export class RoomViewer {
    * Closes the Microphone Permission Modal.
    */
   public closeMicPermissionModal(): void {
-    if (!this.micPermissionModal || this.micPermissionModal.classList.contains('hidden')) return;
+    if (!this.micPermissionModal || this.micPermissionModal.getAttribute('aria-hidden') === 'true') return;
 
     this.micPermissionModal.classList.add('closing');
+    this.micPermissionModal.classList.add('hidden');
     this.micPermissionModal.setAttribute('aria-hidden', 'true');
     setTimeout(() => {
-      this.micPermissionModal?.classList.add('hidden');
       this.micPermissionModal?.classList.remove('closing');
     }, 180);
 
@@ -733,6 +749,94 @@ export class RoomViewer {
       this.modalTriggerElement.focus();
       this.modalTriggerElement = null;
     }
+  }
+
+  /**
+   * Opens the In-Room Exhibition Help & Keyboard Shortcuts Modal.
+   */
+  public openHelpModal(triggerEl?: HTMLElement | null): void {
+    if (this.snapshotModal && this.snapshotModal.getAttribute('aria-hidden') !== 'true') {
+      this.closeSnapshotModal();
+    }
+    if (this.videoModal && this.videoModal.getAttribute('aria-hidden') !== 'true') {
+      this.closeVideoModal();
+    }
+    if (this.micPermissionModal && this.micPermissionModal.getAttribute('aria-hidden') !== 'true') {
+      this.closeMicPermissionModal();
+    }
+
+    this.modalTriggerElement = triggerEl || (document.activeElement as HTMLElement | null);
+
+    if (!this.helpModal) {
+      this.renderHelpModal();
+    }
+
+    this.helpModal?.classList.remove('hidden');
+    this.helpModal?.classList.remove('closing');
+    this.helpModal?.setAttribute('aria-hidden', 'false');
+    this.wakeHUD();
+
+    const closeBtn = this.helpModal?.querySelector<HTMLButtonElement>('#help-modal-btn-close');
+    closeBtn?.focus();
+  }
+
+  /**
+   * Closes the In-Room Help & Keyboard Shortcuts Modal.
+   */
+  public closeHelpModal(): void {
+    if (!this.helpModal || this.helpModal.getAttribute('aria-hidden') === 'true') return;
+
+    this.helpModal.classList.add('closing');
+    this.helpModal.classList.add('hidden');
+    this.helpModal.setAttribute('aria-hidden', 'true');
+    setTimeout(() => {
+      this.helpModal?.classList.remove('closing');
+    }, 180);
+
+    if (this.modalTriggerElement && typeof this.modalTriggerElement.focus === 'function') {
+      this.modalTriggerElement.focus();
+      this.modalTriggerElement = null;
+    }
+  }
+
+  /**
+   * Toggles the In-Room Help & Shortcuts Modal.
+   */
+  public toggleHelpModal(): void {
+    if (this.helpModal && this.helpModal.getAttribute('aria-hidden') !== 'true' && !this.helpModal.classList.contains('hidden')) {
+      this.closeHelpModal();
+    } else {
+      this.openHelpModal();
+    }
+  }
+
+  /**
+   * Toggles parameter controls dock on desktop and bottom drawer on mobile.
+   */
+  public toggleControls(): void {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+    if (isMobile) {
+      if (this.isMobileDrawerOpen) {
+        this.isMobileDrawerOpen = false;
+        this.mobileToggleBtn?.setAttribute('aria-expanded', 'false');
+        this.mobileDrawer?.classList.remove('open');
+        this.mobileScrim?.classList.remove('open');
+      } else {
+        this.isMobileDrawerOpen = true;
+        this.mobileToggleBtn?.setAttribute('aria-expanded', 'true');
+        this.mobileDrawer?.classList.add('open');
+        this.mobileScrim?.classList.add('open');
+        const closeBtn = this.mobileDrawer?.querySelector<HTMLButtonElement>('#room-drawer-btn-close');
+        closeBtn?.focus();
+      }
+    } else {
+      if (this.controlDock) {
+        const isHidden = this.controlDock.classList.toggle('hidden');
+        const btn = this.hudBar?.querySelector('#room-hud-btn-controls');
+        btn?.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
+      }
+    }
+    this.wakeHUD();
   }
 
   /**
@@ -859,6 +963,8 @@ export class RoomViewer {
     const container = document.createElement('div');
     container.className = 'room-viewport-container';
     container.id = 'room-viewport';
+    container.setAttribute('role', 'region');
+    container.setAttribute('aria-label', `${meta.name} Exhibition Viewport`);
 
     // Canvas container host
     const canvasContainer = document.createElement('div');
@@ -866,6 +972,7 @@ export class RoomViewer {
 
     const canvas = document.createElement('canvas');
     canvas.className = 'room-canvas';
+    canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', `${meta.name} Generative Simulation Canvas`);
     canvasContainer.appendChild(canvas);
     container.appendChild(canvasContainer);
@@ -879,7 +986,7 @@ export class RoomViewer {
 
     hudBar.innerHTML = `
       <div class="room-hud-left">
-        <button type="button" id="room-hud-btn-back" class="room-hud-back" aria-label="Return to Gallery" title="Return to Gallery (Esc)">
+        <button type="button" id="room-hud-btn-back" class="room-hud-back" aria-label="Return to Gallery (Esc)" aria-keyshortcuts="Escape" title="Return to Gallery (Esc)">
           <span aria-hidden="true">←</span> Gallery
         </button>
         <div class="room-hud-divider" aria-hidden="true"></div>
@@ -892,31 +999,39 @@ export class RoomViewer {
 
       <div class="room-hud-right">
         <div class="room-hud-actions">
-          <button type="button" id="room-hud-btn-audio" class="room-hud-action-btn state-synth" aria-label="Toggle Audio Reactivity & Source" title="Audio Reactivity (A)">
-            <span aria-hidden="true" class="icon" id="room-hud-audio-icon">🎵</span> <span id="room-hud-audio-label">Synth</span>
-          </button>
-
-          <button type="button" id="room-hud-btn-seed" class="room-hud-seed-btn" aria-label="Randomize Seed & Parameters" title="Randomize Seed (R)">
+          <button type="button" id="room-hud-btn-seed" class="room-hud-seed-btn" aria-label="Randomize Seed & Parameters (Space)" aria-keyshortcuts="Space r" title="Randomize Seed (Space / R)">
             <span aria-hidden="true">🎲</span> <span class="seed-value">${this.activeParams.seed}</span>
           </button>
 
-          <button type="button" id="room-hud-btn-reset" class="room-hud-action-btn" aria-label="Reset Parameters to Default" title="Reset Defaults">
+          <button type="button" id="room-hud-btn-reset" class="room-hud-action-btn" aria-label="Reset Parameters to Default (R)" aria-keyshortcuts="r" title="Reset Defaults (R)">
             <span aria-hidden="true" class="icon">↺</span> <span>Reset</span>
           </button>
 
-          <button type="button" id="room-hud-btn-snapshot" class="room-hud-action-btn" aria-label="Export High-Resolution Snapshot" title="Export Snapshot (S)">
+          <button type="button" id="room-hud-btn-audio" class="room-hud-action-btn state-synth" aria-label="Toggle Audio Reactivity & Source (A / M)" aria-keyshortcuts="a m" title="Audio Reactivity (A / M)">
+            <span aria-hidden="true" class="icon" id="room-hud-audio-icon">🎵</span> <span id="room-hud-audio-label">Synth</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-snapshot" class="room-hud-action-btn" aria-label="Export High-Resolution Snapshot (S)" aria-keyshortcuts="s" title="Export Snapshot (S)">
             <span aria-hidden="true" class="icon">📸</span> <span>Snapshot</span>
           </button>
 
-          <button type="button" id="room-hud-btn-record" class="room-hud-action-btn" aria-label="Record Video Loop" title="Record Video Loop (L)">
+          <button type="button" id="room-hud-btn-record" class="room-hud-action-btn" aria-label="Record Video Loop (L)" aria-keyshortcuts="l" title="Record Video Loop (L)">
             <span aria-hidden="true" class="icon">🎥</span> <span>Loop</span>
           </button>
 
-          <button type="button" id="room-hud-btn-share" class="room-hud-action-btn" aria-label="Share Parameter Link" title="Copy Shareable Link (C)">
+          <button type="button" id="room-hud-btn-controls" class="room-hud-action-btn" aria-label="Toggle Parameter Controls Dock (C)" aria-keyshortcuts="c" aria-expanded="true" aria-controls="room-control-dock room-mobile-drawer" title="Toggle Controls Dock (C)">
+            <span aria-hidden="true" class="icon">🎛</span> <span>Controls</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-share" class="room-hud-action-btn" aria-label="Share Parameter Link (Shift+C)" aria-keyshortcuts="Shift+C" title="Copy Shareable Link (Shift+C)">
             <span aria-hidden="true" class="icon">🔗</span> <span>Share</span>
           </button>
 
-          <button type="button" id="room-hud-btn-fullscreen" class="room-hud-icon-btn" aria-label="Toggle Fullscreen Mode" title="Toggle Fullscreen (F)">
+          <button type="button" id="room-hud-btn-help" class="room-hud-icon-btn" aria-label="Exhibition Help & Shortcuts (H / ?)" aria-keyshortcuts="h ?" title="Exhibition Help & Shortcuts (H / ?)">
+            <span aria-hidden="true">?</span>
+          </button>
+
+          <button type="button" id="room-hud-btn-fullscreen" class="room-hud-icon-btn" aria-label="Toggle Fullscreen Mode (F)" aria-keyshortcuts="f" title="Toggle Fullscreen (F)">
             <span aria-hidden="true" class="fs-icon">⛶</span>
           </button>
         </div>
@@ -931,7 +1046,8 @@ export class RoomViewer {
     const controlDock = document.createElement('aside');
     controlDock.className = 'room-control-dock';
     controlDock.id = 'room-control-dock';
-    controlDock.setAttribute('aria-label', 'Exhibit Parameter Controls');
+    controlDock.setAttribute('role', 'region');
+    controlDock.setAttribute('aria-label', `${meta.name} Parameter Controls Dock`);
     container.appendChild(controlDock);
 
     // Mobile Control Toggle Button
@@ -940,6 +1056,8 @@ export class RoomViewer {
     mobileToggleBtn.className = 'room-mobile-toggle-btn';
     mobileToggleBtn.id = 'room-mobile-toggle-btn';
     mobileToggleBtn.setAttribute('aria-label', 'Open Parameter Controls');
+    mobileToggleBtn.setAttribute('aria-expanded', 'false');
+    mobileToggleBtn.setAttribute('aria-controls', 'room-mobile-drawer');
     mobileToggleBtn.innerHTML = `
       <span aria-hidden="true">🎛</span>
       <span>Parameters</span>
@@ -950,12 +1068,14 @@ export class RoomViewer {
     const mobileScrim = document.createElement('div');
     mobileScrim.className = 'room-drawer-scrim';
     mobileScrim.id = 'room-drawer-scrim';
+    mobileScrim.setAttribute('aria-hidden', 'true');
     container.appendChild(mobileScrim);
 
     const mobileDrawer = document.createElement('section');
     mobileDrawer.className = 'room-mobile-drawer';
     mobileDrawer.id = 'room-mobile-drawer';
-    mobileDrawer.setAttribute('aria-label', 'Exhibit Parameters Drawer');
+    mobileDrawer.setAttribute('role', 'region');
+    mobileDrawer.setAttribute('aria-label', `${meta.name} Parameters Drawer`);
     mobileDrawer.innerHTML = `
       <div class="room-drawer-header" id="room-drawer-header">
         <div class="room-drawer-handle" aria-hidden="true"></div>
@@ -1422,10 +1542,22 @@ export class RoomViewer {
       this.openVideoModal();
     }, { signal });
 
+    // Controls Dock / Drawer Toggle
+    const controlsBtn = this.hudBar.querySelector('#room-hud-btn-controls');
+    controlsBtn?.addEventListener('click', () => {
+      this.toggleControls();
+    }, { signal });
+
     // Share Link
     const shareBtn = this.hudBar.querySelector('#room-hud-btn-share');
     shareBtn?.addEventListener('click', () => {
       this.shareURL();
+    }, { signal });
+
+    // Help & Shortcuts Modal
+    const helpBtn = this.hudBar.querySelector('#room-hud-btn-help');
+    helpBtn?.addEventListener('click', () => {
+      this.openHelpModal();
     }, { signal });
 
     // Fullscreen Toggle
@@ -1980,6 +2112,117 @@ export class RoomViewer {
   }
 
   /**
+   * Renders the In-Room Exhibition Help & Keyboard Shortcuts Modal.
+   */
+  private renderHelpModal(): void {
+    if (!this.container || !this.activeMetadata) return;
+    const meta = this.activeMetadata;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'room-modal-overlay hidden';
+    overlay.id = 'room-help-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'room-help-title');
+    overlay.setAttribute('aria-hidden', 'true');
+
+    overlay.innerHTML = `
+      <div class="room-modal-card room-help-modal-card">
+        <div class="room-modal-header">
+          <div class="room-modal-title-group">
+            <h2 class="room-modal-title" id="room-help-title">✦ ${meta.name}</h2>
+            <span class="room-modal-badge">${meta.categoryName.toUpperCase()}</span>
+          </div>
+          <button type="button" class="room-modal-close" id="help-modal-btn-close" aria-label="Close dialog">&times;</button>
+        </div>
+
+        <div class="room-modal-body">
+          <div class="room-help-specs-grid">
+            <div class="room-help-spec-item">
+              <span class="room-help-spec-label">Room Index</span>
+              <span class="room-help-spec-value">Room #${meta.indexDisplay}</span>
+            </div>
+            <div class="room-help-spec-item">
+              <span class="room-help-spec-label">Compute Backend</span>
+              <span class="room-help-spec-value">${meta.backendDisplay}</span>
+            </div>
+            <div class="room-help-spec-item" style="grid-column: 1 / -1;">
+              <span class="room-help-spec-label">Mathematical Foundation</span>
+              <span class="room-help-spec-value">${meta.mathModel}</span>
+            </div>
+          </div>
+
+          <p style="font-size: var(--text-caption); color: var(--text-secondary); line-height: 1.5; margin-bottom: var(--space-4);">
+            ${meta.description}
+          </p>
+
+          <div class="room-modal-section">
+            <span class="room-modal-section-title">In-Room Keyboard Navigation &amp; Shortcuts</span>
+            <div class="room-help-shortcut-grid">
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Randomize Seed</span>
+                <kbd class="room-help-shortcut-key">Space</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Reset Defaults</span>
+                <kbd class="room-help-shortcut-key">R</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Snapshot Export</span>
+                <kbd class="room-help-shortcut-key">S</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Video Loop Record</span>
+                <kbd class="room-help-shortcut-key">L</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Toggle Controls Dock</span>
+                <kbd class="room-help-shortcut-key">C</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Fullscreen Mode</span>
+                <kbd class="room-help-shortcut-key">F</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Audio Mute / Toggle</span>
+                <kbd class="room-help-shortcut-key">M / A</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Help &amp; Shortcuts</span>
+                <kbd class="room-help-shortcut-key">H / ?</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Search in Gallery</span>
+                <kbd class="room-help-shortcut-key">/</kbd>
+              </div>
+              <div class="room-help-shortcut-row">
+                <span class="room-help-shortcut-desc">Close / Gallery</span>
+                <kbd class="room-help-shortcut-key">Esc</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="room-modal-actions" style="margin-top: var(--space-4);">
+          <button type="button" class="room-btn-primary" id="help-modal-btn-dismiss">
+            <span class="btn-text">Close (<kbd style="font-family: inherit;">Esc</kbd>)</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.container.appendChild(overlay);
+    this.helpModal = overlay;
+
+    const signal = this.abortController?.signal;
+    overlay.querySelector('#help-modal-btn-close')?.addEventListener('click', () => this.closeHelpModal(), { signal });
+    overlay.querySelector('#help-modal-btn-dismiss')?.addEventListener('click', () => this.closeHelpModal(), { signal });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) this.closeHelpModal();
+    }, { signal });
+  }
+
+  /**
    * Sets up 3000ms idle timer for auto-dimming the HUD and controls.
    */
   private setupAutoDimming(): void {
@@ -2064,16 +2307,17 @@ export class RoomViewer {
 
   /**
    * Attaches comprehensive keyboard shortcuts for in-room operations:
-   * - Space: Toggle Pause / Resume
-   * - R: Randomize Seed
-   * - S: Open High-Res Snapshot Modal
-   * - L: Open Video Loop Export Modal
-   * - A: Toggle Audio Source / Open Audio Modal
+   * - Space: Randomize Seed & Parameters (or P: Toggle Pause)
+   * - R: Reset Parameters to Exhibit Defaults
+   * - S: Open / Close High-Res Snapshot Modal
+   * - L: Open / Close Video Loop Export Modal
+   * - C: Toggle Parameter Controls Dock / Drawer (or Shift+C: Copy Share Link)
+   * - F: Toggle Fullscreen Mode
+   * - H / ?: Open / Close Exhibition Help & Shortcuts Dialog (or Shift+H: Toggle HUD Visibility)
    * - M: Toggle Audio Mute
-   * - C: Copy Share Link
-   * - F: Toggle Fullscreen
+   * - A: Toggle Audio Source (Synth / Mic / Mute)
+   * - /: Return to Gallery and Focus Search
    * - Esc: Close Modals / Close Drawer / Return to Gallery
-   * - H: Toggle HUD Visibility
    */
   private setupKeyboardShortcuts(): void {
     if (typeof window === 'undefined') return;
@@ -2083,9 +2327,10 @@ export class RoomViewer {
 
       // Check if any modal is currently open and trap Tab inside it
       const activeModal =
-        (this.snapshotModal && !this.snapshotModal.classList.contains('hidden') && this.snapshotModal) ||
-        (this.videoModal && !this.videoModal.classList.contains('hidden') && this.videoModal) ||
-        (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden') && this.micPermissionModal);
+        (this.helpModal && this.helpModal.getAttribute('aria-hidden') !== 'true' && this.helpModal) ||
+        (this.snapshotModal && this.snapshotModal.getAttribute('aria-hidden') !== 'true' && this.snapshotModal) ||
+        (this.videoModal && this.videoModal.getAttribute('aria-hidden') !== 'true' && this.videoModal) ||
+        (this.micPermissionModal && this.micPermissionModal.getAttribute('aria-hidden') !== 'true' && this.micPermissionModal);
 
       if (activeModal && e.key === 'Tab') {
         const focusable = Array.from(
@@ -2114,17 +2359,23 @@ export class RoomViewer {
       }
 
       // Ignore shortcuts when focused inside an input/textarea/select
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
-        return;
+      const target = (e?.target || null) as HTMLElement | null;
+      if (target && typeof target.tagName === 'string') {
+        const tn = target.tagName.toUpperCase();
+        if (tn === 'INPUT' || tn === 'TEXTAREA' || tn === 'SELECT') {
+          return;
+        }
       }
 
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        this.randomizeSeed();
+      } else if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         this.togglePause();
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        this.randomizeSeed();
+        this.resetDefaults();
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         this.toggleAudioSource();
@@ -2145,22 +2396,33 @@ export class RoomViewer {
         } else {
           this.openVideoModal();
         }
-      } else if (e.key === 'c' || e.key === 'C') {
+      } else if ((e.key === 'c' || e.key === 'C') && e.shiftKey) {
         e.preventDefault();
         this.shareURL();
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        this.toggleControls();
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         this.toggleFullscreen();
-      } else if (e.key === 'h' || e.key === 'H') {
+      } else if ((e.key === 'h' || e.key === 'H') && e.shiftKey) {
         e.preventDefault();
         this.toggleHUDVisibility();
+      } else if (e.key === 'h' || e.key === 'H' || e.key === '?') {
+        e.preventDefault();
+        this.toggleHelpModal();
+      } else if (e.key === '/') {
+        e.preventDefault();
+        router.navigateToGallery();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        if (this.micPermissionModal && !this.micPermissionModal.classList.contains('hidden')) {
+        if (this.helpModal && this.helpModal.getAttribute('aria-hidden') !== 'true') {
+          this.closeHelpModal();
+        } else if (this.micPermissionModal && this.micPermissionModal.getAttribute('aria-hidden') !== 'true') {
           this.closeMicPermissionModal();
-        } else if (this.snapshotModal && !this.snapshotModal.classList.contains('hidden')) {
+        } else if (this.snapshotModal && this.snapshotModal.getAttribute('aria-hidden') !== 'true') {
           this.closeSnapshotModal();
-        } else if (this.videoModal && !this.videoModal.classList.contains('hidden')) {
+        } else if (this.videoModal && this.videoModal.getAttribute('aria-hidden') !== 'true') {
           this.closeVideoModal();
         } else if (this.isMobileDrawerOpen) {
           this.isMobileDrawerOpen = false;

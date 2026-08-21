@@ -375,6 +375,16 @@ export class MiniPreviewManager {
         }
         return { seeds, t: 0 };
       }
+      case 'langtons-ant': {
+        const gw = 44;
+        const gh = 44;
+        const grid = new Uint8Array(gw * gh);
+        const ants = [
+          { x: 22, y: 22, dir: 0, color: '#00FF9D' },
+          { x: 18, y: 22, dir: 2, color: '#00F0FF' },
+        ];
+        return { gw, gh, grid, ants, t: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -1283,6 +1293,75 @@ export class MiniPreviewManager {
           ctx.beginPath();
           ctx.arc(pointerX, pointerY, 6.0, 0, Math.PI * 2);
           ctx.stroke();
+        }
+
+        break;
+      }
+
+      case 'langtons-ant': {
+        state.t += dt;
+        const gw = state.gw;
+        const gh = state.gh;
+        const grid = state.grid;
+        const ants = state.ants;
+        const steps = isHovered ? 120 : 45;
+
+        // Direction vectors: 0: Up, 1: Right, 2: Down, 3: Left
+        const dx = [0, 1, 0, -1];
+        const dy = [-1, 0, 1, 0];
+
+        // Step automata
+        for (let s = 0; s < steps; s++) {
+          for (const ant of ants) {
+            const idx = ant.y * gw + ant.x;
+            const c = grid[idx];
+            // Turn: 0 -> Right (+1), 1 -> Left (+3 mod 4)
+            ant.dir = (ant.dir + (c === 0 ? 1 : 3)) & 3;
+            grid[idx] = c === 0 ? 1 : 0;
+            ant.x = (ant.x + dx[ant.dir] + gw) % gw;
+            ant.y = (ant.y + dy[ant.dir] + gh) % gh;
+          }
+        }
+
+        // Pointer disturbance if hovered
+        if (isHovered && pointerX > 0 && pointerY > 0) {
+          const px = Math.floor((pointerX / w) * gw);
+          const py = Math.floor((pointerY / h) * gh);
+          if (px >= 0 && px < gw && py >= 0 && py < gh) {
+            grid[py * gw + px] = 1;
+          }
+        }
+
+        // Render lattice
+        ctx.fillStyle = '#090A0D';
+        ctx.fillRect(0, 0, w, h);
+
+        const cellW = w / gw;
+        const cellH = h / gh;
+
+        ctx.fillStyle = 'rgba(0, 255, 157, 0.85)';
+        for (let y = 0; y < gh; y++) {
+          for (let x = 0; x < gw; x++) {
+            if (grid[y * gw + x] === 1) {
+              ctx.fillRect(x * cellW, y * cellH, cellW + 0.5, cellH + 0.5);
+            }
+          }
+        }
+
+        // Render ant heads with direction indicator
+        for (const ant of ants) {
+          const ax = (ant.x + 0.5) * cellW;
+          const ay = (ant.y + 0.5) * cellH;
+
+          ctx.fillStyle = ant.color;
+          ctx.beginPath();
+          ctx.arc(ax, ay, isHovered ? 3.0 : 2.2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(ax, ay, 1.0, 0, Math.PI * 2);
+          ctx.fill();
         }
 
         break;

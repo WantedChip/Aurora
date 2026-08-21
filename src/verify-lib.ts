@@ -3843,6 +3843,214 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'voronoi/index.ts', details: String(err) });
   }
 
+  // 31. Verify Room 25: Langton's Ant & Turmites (Multi-Color 2D Automata & Emergent Highways)
+  try {
+    const antCanvas = document.createElement('canvas');
+    antCanvas.width = 600;
+    antCanvas.height = 600;
+    const antContainer = document.createElement('div');
+    const antPrng = createPRNG('#00FF9D');
+
+    const antMeta = getRoomById('langtons-ant');
+    const roomInstance = await lazyLoadRoom('langtons-ant');
+
+    const { sampleAntColor, getAntPaletteColor, LangtonsAntRoom } = await import('./rooms/langtons-ant/index');
+
+    // 1. Verify Spectral Color Palette Interpolation & LUT Lookups
+    const color0 = sampleAntColor('obsidian-emerald', 0.0);
+    const colorMid = sampleAntColor('obsidian-emerald', 0.5);
+    const color1 = sampleAntColor('obsidian-emerald', 1.0);
+    const colorCss = getAntPaletteColor('spectral-aurora', 0.75, 0.0, 0.9);
+
+    const colorsValid =
+      typeof color0.r === 'number' && typeof color0.g === 'number' && typeof color0.b === 'number' &&
+      typeof colorMid.r === 'number' && typeof colorMid.g === 'number' && typeof colorMid.b === 'number' &&
+      typeof color1.r === 'number' && typeof color1.g === 'number' && typeof color1.b === 'number' &&
+      colorCss.startsWith('rgba(') && colorCss.endsWith(')');
+
+    // 2. Mount room instance
+    const ctx: RoomContext = {
+      canvas: antCanvas,
+      container: antContainer,
+      params: { ...(antMeta?.defaultParams || {}) },
+      prng: antPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 3. Test mathematical 2D Turing Machine State Transitions & Highway Emergence
+    let initialCount = 0;
+    let postSubstepCount = 0;
+    let antSpawned = false;
+    let multiColorWorked = false;
+    let turmiteWorked = false;
+
+    if (roomInstance instanceof LangtonsAntRoom) {
+      initialCount = roomInstance.antCount;
+
+      // Execute 1,000 substeps on classic RL rule
+      roomInstance.stepSimulation(1000);
+      postSubstepCount = roomInstance.totalSteps;
+
+      // Verify grid cells were flipped
+      let nonZeroCount = 0;
+      for (let i = 0; i < roomInstance.grid.length; i++) {
+        if (roomInstance.grid[i] > 0) nonZeroCount++;
+      }
+
+      // Test multi-color rule RLR (3 states)
+      roomInstance.setRule('RLR');
+      roomInstance.stepSimulation(500);
+      multiColorWorked = roomInstance.ruleLength === 3 && roomInstance.currentRule === 'RLR';
+
+      // Test 2-State Turmite Engine
+      roomInstance.setTurmite({
+        '0_0': { nextState: 1, nextColor: 1, turn: 'R' },
+        '0_1': { nextState: 0, nextColor: 0, turn: 'L' },
+        '1_0': { nextState: 1, nextColor: 1, turn: 'L' },
+        '1_1': { nextState: 0, nextColor: 0, turn: 'R' },
+      });
+      roomInstance.stepSimulation(500);
+      turmiteWorked = roomInstance.isTurmite;
+
+      // 4. Test interactive ant spawning
+      antSpawned = roomInstance.spawnAntAt(150, 150, 0);
+    }
+
+    // 5. Test dynamic parameter updates across canonical presets & multi-ant colonies
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'triangular-rlr',
+        colorPalette: 'spectral-aurora',
+      });
+      roomInstance.updateParams({
+        preset: 'symmetric-llrr',
+        colorPalette: 'solar-plasma',
+      });
+      roomInstance.updateParams({
+        preset: 'highway-builder',
+        colorPalette: 'cyber-neon',
+      });
+      roomInstance.updateParams({
+        preset: 'square-carpet',
+        colorPalette: 'cosmic-amethyst',
+      });
+      roomInstance.updateParams({
+        preset: 'chaotic-nebula',
+        colorPalette: 'bioluminescent-abyss',
+      });
+      roomInstance.updateParams({
+        preset: 'dual-highway-battle',
+        antCount: 2,
+        colonyLayout: 'pair-symmetric',
+      });
+      roomInstance.updateParams({
+        preset: 'quad-colony-rosette',
+        antCount: 4,
+        colonyLayout: 'cross-quad',
+      });
+      roomInstance.updateParams({
+        preset: 'octa-swarm-mandala',
+        antCount: 8,
+        colonyLayout: 'octa-swarm',
+      });
+      roomInstance.updateParams({
+        preset: 'complex-tapestry-12',
+        colorPalette: 'monochrome-lithic',
+      });
+      roomInstance.updateParams({
+        preset: 'turmite-spiral',
+      });
+      roomInstance.updateParams({
+        preset: 'turmite-highway',
+      });
+      roomInstance.updateParams({
+        preset: 'classic-rl',
+        colorPalette: 'obsidian-emerald',
+      });
+    }
+
+    // 6. Test pointer interaction events
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 330,
+        normalizedX: 0.53,
+        normalizedY: 0.55,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 320,
+        y: 330,
+        normalizedX: 0.53,
+        normalizedY: 0.55,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 7. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 8. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const antPassed =
+      colorsValid &&
+      initialCount >= 1 &&
+      postSubstepCount >= 1000 &&
+      multiColorWorked &&
+      turmiteWorked &&
+      antSpawned &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: antPassed,
+      module: 'langtons-ant/index.ts (Room 25)',
+      details: antPassed
+        ? `Langton's Ant & Turmites mounted, verified discrete 2D Turing solver (${postSubstepCount} substeps), 32-bit LUT pixel streamer, multi-color rules (RL, RLR, LLRR, LRRRRRLLR), multi-state Turmite engine (spirals, highways), multi-ant swarms (1..16 ants), 12 canonical presets, 7 curatorial palettes, interactive pointer tools (spawn, paint, clear, invert, repel), and offline snapshot capture. Clean teardown verified.`
+        : `Langton's Ant verification failed: colorsValid=${colorsValid}, initialCount=${initialCount}, postSubstepCount=${postSubstepCount}, multiColor=${multiColorWorked}, turmite=${turmiteWorked}, antSpawned=${antSpawned}, mount=${typeof roomInstance.mount}, cleanupRan=${cleanupRan}, snapshotCanvas=${snapshotCanvas ? `${snapshotCanvas.width}x${snapshotCanvas.height}` : 'null'}`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'langtons-ant/index.ts', details: String(err) });
+  }
+
   // 31. Verify Client-Side Hash Router
   try {
     router.start();

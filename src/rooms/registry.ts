@@ -2372,6 +2372,165 @@ export const ROOM_CATALOG: readonly RoomMetadata[] = [
       { key: 'trebleReaction', label: 'Treble Reaction (Glow Shimmer)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
     ],
   },
+
+  // Room 25
+  {
+    id: 'langtons-ant',
+    index: 25,
+    indexDisplay: '#25',
+    name: "Langton's Ant & Turmites",
+    category: 'morphogenesis',
+    categoryName: 'Morphogenesis & Landscape',
+    backend: 'canvas2d',
+    backendDisplay: 'CANVAS 2D / TURING',
+    mathModel: "Discrete 2D Universal Turing Machines, Multi-Color Rules & Turmites",
+    description: "Discrete 2D Turing machines demonstrating emergent ordered highways from chaotic trajectories, extended with multi-color rules and multi-ant colonies.",
+    curatorialNote: "Explores the emergence of macroscopic order and deterministic computation from minimal local state transition rules, showing how simple 2D universal Turing agents transition through chaos to construct infinite diagonal highways.",
+    tags: ['langtons-ant', 'turmites', 'cellular-automata', 'turing-machine', 'emergence', 'highways', 'multi-color', 'swarms', 'discrete-math', 'morphogenesis'],
+    moods: ['hypnotic', 'computational', 'emergent', 'geometric', 'chaotic', 'structured'],
+    defaultParams: {
+      seed: '#00FF9D',
+      preset: 'classic-rl',
+      ruleString: 'RL',
+      antCount: 1,
+      colonyLayout: 'center',
+      speedSteps: 12000,
+      gridResolution: 300,
+      colorPalette: 'obsidian-emerald',
+      paletteCycleSpeed: 0.0,
+      antHeadStyle: 'chevron',
+      antHeadSize: 3.5,
+      speedTrails: true,
+      trailDecay: 0.08,
+      gridLines: false,
+      contrast: 1.2,
+      pointerMode: 'spawn-ant',
+      brushRadius: 6,
+      brushColor: 1,
+      audioSource: 'synth',
+      audioSensitivity: 1.0,
+      bassReaction: 1.5,
+      midReaction: 1.0,
+      trebleReaction: 1.4,
+    },
+    controls: [
+      {
+        key: 'preset',
+        label: 'Automata Preset',
+        type: 'select',
+        options: [
+          { label: "Classic Langton's Ant (RL Highway)", value: 'classic-rl' },
+          { label: 'Triangular Growth (RLR Fractal)', value: 'triangular-rlr' },
+          { label: 'Cardioid Symmetry (LLRR Diamond)', value: 'symmetric-llrr' },
+          { label: 'Highway Builder (LRRRRRLLR 9-Color)', value: 'highway-builder' },
+          { label: 'Square Carpet (LLRL Sierpinski)', value: 'square-carpet' },
+          { label: 'Chaotic Nebula (RLLR Dense)', value: 'chaotic-nebula' },
+          { label: 'Dual Highway Battle (2 Ants RL)', value: 'dual-highway-battle' },
+          { label: 'Quad Colony Rosette (4 Ants RLR)', value: 'quad-colony-rosette' },
+          { label: 'Octa-Swarm Mandala (8 Ants LLRR)', value: 'octa-swarm-mandala' },
+          { label: 'Complex Tapestry (12-Color)', value: 'complex-tapestry-12' },
+          { label: 'Turmite Spiral Labyrinth (2-State)', value: 'turmite-spiral' },
+          { label: 'Turmite Moving Highway (2-State)', value: 'turmite-highway' },
+        ],
+        folder: 'Rules & Presets',
+      },
+      { key: 'ruleString', label: 'Turn Rule String', type: 'select', options: [
+          { label: 'RL (Classic 2-Color Highway)', value: 'RL' },
+          { label: 'RLR (3-Color Triangle Fractal)', value: 'RLR' },
+          { label: 'LLRR (4-Color Cardioid)', value: 'LLRR' },
+          { label: 'RLLR (4-Color Dense Nebula)', value: 'RLLR' },
+          { label: 'LLRL (4-Color Square Carpet)', value: 'LLRL' },
+          { label: 'RRLL (4-Color Symmetric)', value: 'RRLL' },
+          { label: 'LRRRRRLLR (9-Color Highway Locomotive)', value: 'LRRRRRLLR' },
+          { label: 'RRLLLRLLLRRR (12-Color Tapestry)', value: 'RRLLLRLLLRRR' },
+          { label: 'RLRR (4-Color Expanding Spiral)', value: 'RLRR' },
+        ],
+        folder: 'Rules & Presets'
+      },
+      { key: 'gridResolution', label: 'Grid Resolution', type: 'slider', min: 150, max: 500, step: 50, folder: 'Rules & Presets' },
+
+      { key: 'antCount', label: 'Ant Colony Size', type: 'slider', min: 1, max: 16, step: 1, folder: 'Ant Swarm & Speed' },
+      {
+        key: 'colonyLayout',
+        label: 'Initial Colony Layout',
+        type: 'select',
+        options: [
+          { label: 'Single Center', value: 'center' },
+          { label: 'Pair Symmetric (Mirrored)', value: 'pair-symmetric' },
+          { label: 'Cross Quad (4 Cardinal)', value: 'cross-quad' },
+          { label: 'Hexagonal Ring', value: 'hex-ring' },
+          { label: 'Octagonal Swarm', value: 'octa-swarm' },
+          { label: '16-Ant Colony', value: 'colony-16' },
+          { label: 'Random Scatter', value: 'random-scatter' },
+        ],
+        folder: 'Ant Swarm & Speed',
+      },
+      { key: 'speedSteps', label: 'Simulation Substeps / Frame', type: 'slider', min: 1000, max: 50000, step: 1000, folder: 'Ant Swarm & Speed' },
+
+      {
+        key: 'colorPalette',
+        label: 'Curatorial Palette',
+        type: 'select',
+        options: [
+          { label: 'Obsidian Emerald (Jade / Mint)', value: 'obsidian-emerald' },
+          { label: 'Spectral Aurora (Cyan / Magenta)', value: 'spectral-aurora' },
+          { label: 'Solar Plasma (Amber / Crimson)', value: 'solar-plasma' },
+          { label: 'Cyber Neon (Cobalt / Pink)', value: 'cyber-neon' },
+          { label: 'Cosmic Amethyst (Purple / Rose)', value: 'cosmic-amethyst' },
+          { label: 'Monochrome Lithic (Slate / Silver)', value: 'monochrome-lithic' },
+          { label: 'Bioluminescent Abyss (Deep Marine)', value: 'bioluminescent-abyss' },
+        ],
+        folder: 'Visual Aesthetics',
+      },
+      {
+        key: 'antHeadStyle',
+        label: 'Ant Cursor Marker',
+        type: 'select',
+        options: [
+          { label: 'Directional Chevron', value: 'chevron' },
+          { label: 'Luminescent Disc', value: 'glowing-disc' },
+          { label: 'Pulsing Diamond Star', value: 'pulsing-star' },
+          { label: 'None / Minimal Grid Only', value: 'none' },
+        ],
+        folder: 'Visual Aesthetics',
+      },
+      { key: 'antHeadSize', label: 'Marker Scale', type: 'slider', min: 1.0, max: 8.0, step: 0.5, folder: 'Visual Aesthetics' },
+      { key: 'speedTrails', label: 'Phosphor Speed Trails', type: 'boolean', folder: 'Visual Aesthetics' },
+      { key: 'gridLines', label: 'Show Cell Grid Lines', type: 'boolean', folder: 'Visual Aesthetics' },
+
+      {
+        key: 'pointerMode',
+        label: 'Pointer Tool Mode',
+        type: 'select',
+        options: [
+          { label: 'Spawn Ant (Click to Deploy)', value: 'spawn-ant' },
+          { label: 'Paint Cells (Draw Color State)', value: 'draw-cells' },
+          { label: 'Invert Cells (Increment State)', value: 'invert-cells' },
+          { label: 'Clear Region (Erase to Void)', value: 'clear-region' },
+          { label: 'Repel Ants (Electrostatic Push)', value: 'repel-ants' },
+          { label: 'Disabled / Observation', value: 'none' },
+        ],
+        folder: 'Pointer & Tools',
+      },
+      { key: 'brushRadius', label: 'Brush Radius', type: 'slider', min: 1, max: 25, step: 1, folder: 'Pointer & Tools' },
+
+      {
+        key: 'audioSource',
+        label: 'Audio Reactivity',
+        type: 'select',
+        options: [
+          { label: 'Ambient Drone Synth', value: 'synth' },
+          { label: 'Live Microphone', value: 'mic' },
+          { label: 'Disabled / Muted', value: 'none' },
+        ],
+        folder: 'Audio Reactivity',
+      },
+      { key: 'audioSensitivity', label: 'Spectral Sensitivity', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'bassReaction', label: 'Bass Reaction (Speed Boost)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'midReaction', label: 'Mid Reaction (Palette Drift)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+      { key: 'trebleReaction', label: 'Treble Reaction (Ant Glow)', type: 'slider', min: 0.0, max: 3.0, step: 0.1, folder: 'Audio Reactivity' },
+    ],
+  },
 ];
 
 // Map lookup table for O(1) room queries
@@ -2551,6 +2710,9 @@ export async function lazyLoadRoom(id: string): Promise<RoomInstance> {
         break;
       case 'voronoi':
         modulePromise = import('./voronoi/index');
+        break;
+      case 'langtons-ant':
+        modulePromise = import('./langtons-ant/index');
         break;
       default:
         modulePromise = Promise.reject(new Error(`Unmapped room ID: ${id}`));

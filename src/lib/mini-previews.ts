@@ -323,6 +323,39 @@ export class MiniPreviewManager {
       case 'tunnel-warp': {
         return { warpPos: 0, rot: 0, t: 0 };
       }
+      case 'dla': {
+        const branches: { x0: number; y0: number; x1: number; y1: number; age: number }[] = [];
+        const walkers: { x: number; y: number }[] = [];
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+
+        // Pre-generate a compact initial seed tree
+        const numInitial = 60;
+        let rMax = 8;
+        const pts: { x: number; y: number }[] = [{ x: cx, y: cy }];
+
+        for (let i = 1; i < numInitial; i++) {
+          const parentIdx = Math.floor(prng.next() * pts.length);
+          const parent = pts[parentIdx];
+          const angle = prng.next() * Math.PI * 2;
+          const dist = prng.nextFloat(2.5, 4.5);
+          const px = parent.x + Math.cos(angle) * dist;
+          const py = parent.y + Math.sin(angle) * dist;
+          pts.push({ x: px, y: py });
+          branches.push({ x0: parent.x, y0: parent.y, x1: px, y1: py, age: i / numInitial });
+          rMax = Math.max(rMax, Math.hypot(px - cx, py - cy));
+        }
+
+        for (let i = 0; i < 30; i++) {
+          const a = prng.next() * Math.PI * 2;
+          walkers.push({
+            x: cx + Math.cos(a) * (rMax + prng.nextFloat(6, 25)),
+            y: cy + Math.sin(a) * (rMax + prng.nextFloat(6, 25)),
+          });
+        }
+
+        return { branches, walkers, pts, rMax, t: 0, growthProgress: numInitial };
+      }
       default:
         return { t: 0 };
     }
@@ -1079,6 +1112,74 @@ export class MiniPreviewManager {
         ctx.fillStyle = '#090A0D';
         ctx.beginPath();
         ctx.arc(focalX, focalY, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        break;
+      }
+
+      case 'dla': {
+        state.t += dt;
+        const speed = isHovered ? 2.2 : 1.0;
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+
+        ctx.fillStyle = '#090A0D';
+        ctx.fillRect(0, 0, w, h);
+
+        // Active Brownian walkers diffusing around perimeter
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
+        for (let i = 0; i < state.walkers.length; i++) {
+          const wk = state.walkers[i];
+          const angle = Math.sin(state.t * 3.0 + i * 1.7) * Math.PI * 2;
+          wk.x += Math.cos(angle) * 1.8 * speed;
+          wk.y += Math.sin(angle) * 1.8 * speed;
+
+          const dist = Math.hypot(wk.x - cx, wk.y - cy);
+          if (dist > state.rMax * 2.2 + 30 || dist < 2) {
+            const a = Math.random() * Math.PI * 2;
+            wk.x = cx + Math.cos(a) * (state.rMax + 10);
+            wk.y = cy + Math.sin(a) * (state.rMax + 10);
+          }
+
+          ctx.fillRect(wk.x - 0.75, wk.y - 0.75, 1.5, 1.5);
+        }
+
+        // Draw Dendritic crystal branches
+        ctx.lineCap = 'round';
+        ctx.lineWidth = isHovered ? 1.6 : 1.2;
+
+        for (let i = 0; i < state.branches.length; i++) {
+          const b = state.branches[i];
+          const frac = b.age;
+          const alpha = 0.4 + 0.55 * frac;
+          ctx.strokeStyle = frac < 0.3
+            ? `rgba(0, 180, 216, ${alpha * 0.7})`
+            : frac < 0.7
+            ? `rgba(0, 240, 255, ${alpha})`
+            : `rgba(0, 255, 157, ${alpha})`;
+
+          ctx.beginPath();
+          ctx.moveTo(b.x0, b.y0);
+          ctx.lineTo(b.x1, b.y1);
+          ctx.stroke();
+        }
+
+        // Growing tips glowing beacons
+        const tipCount = Math.min(10, state.branches.length);
+        const pulse = 1.0 + Math.sin(state.t * 6.0) * 0.3;
+        ctx.fillStyle = 'rgba(244, 246, 251, 0.9)';
+        for (let i = state.branches.length - tipCount; i < state.branches.length; i++) {
+          if (i < 0) continue;
+          const b = state.branches[i];
+          ctx.beginPath();
+          ctx.arc(b.x1, b.y1, (isHovered ? 2.2 : 1.5) * pulse, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Nucleus central seed
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
         ctx.fill();
 
         break;

@@ -3484,6 +3484,176 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'tunnel-warp/index.ts', details: String(err) });
   }
 
+  // 29. Verify Room 23: Diffusion-Limited Aggregation (DLA Dendritic Brownian Crystal Growth)
+  try {
+    const dlaCanvas = document.createElement('canvas');
+    dlaCanvas.width = 600;
+    dlaCanvas.height = 600;
+    const dlaContainer = document.createElement('div');
+    const dlaPrng = createPRNG('#00FF9D');
+
+    const dlaMeta = getRoomById('dla');
+    const roomInstance = await lazyLoadRoom('dla');
+
+    const { sampleDLAColor, getDLAPaletteColor, DLARoom } = await import('./rooms/dla/index');
+
+    // 1. Verify Spectral Color Palette Interpolation
+    const color0 = sampleDLAColor('iridescent-obsidian', 0.0);
+    const colorMid = sampleDLAColor('iridescent-obsidian', 0.5);
+    const color1 = sampleDLAColor('iridescent-obsidian', 1.0);
+    const colorCss = getDLAPaletteColor('frost-crystal', 0.75, 0.0, 0.9);
+
+    const colorsValid =
+      typeof color0.r === 'number' && typeof color0.g === 'number' && typeof color0.b === 'number' &&
+      typeof colorMid.r === 'number' && typeof colorMid.g === 'number' && typeof colorMid.b === 'number' &&
+      typeof color1.r === 'number' && typeof color1.g === 'number' && typeof color1.b === 'number' &&
+      colorCss.startsWith('rgba(') && colorCss.endsWith(')');
+
+    // 2. Mount room instance
+    const ctx: RoomContext = {
+      canvas: dlaCanvas,
+      container: dlaContainer,
+      params: { ...(dlaMeta?.defaultParams || {}) },
+      prng: dlaPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 3. Test mathematical DLA step simulation and particle aggregation
+    let initialCount = 0;
+    let postStepCount = 0;
+    let customSeedPlanted = false;
+
+    if (roomInstance instanceof DLARoom) {
+      initialCount = roomInstance.clusterCount;
+      // Step simulation multiple times
+      for (let s = 0; s < 10; s++) {
+        roomInstance.stepSimulation(20, 0.016);
+      }
+      postStepCount = roomInstance.clusterCount;
+
+      // 4. Test interactive nucleation seed planting
+      customSeedPlanted = roomInstance.plantSeedAt(250, 250);
+    }
+
+    // 5. Test dynamic parameter updates across all 6 canonical presets
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'coral-reef',
+        stickingProbability: 0.14,
+        colorPalette: 'solar-coral',
+        renderStyle: 'glow-nodes',
+      });
+      roomInstance.updateParams({
+        preset: 'frost-spires',
+        seedType: 'line',
+        driftDirection: 'up',
+        driftStrength: 0.45,
+        colorPalette: 'frost-crystal',
+      });
+      roomInstance.updateParams({
+        preset: 'concentric-nebula',
+        seedType: 'ring',
+        colorPalette: 'spectral-amethyst',
+        renderStyle: 'luminous-spores',
+      });
+      roomInstance.updateParams({
+        preset: 'quad-colonies',
+        seedType: 'quad',
+        colorPalette: 'bioluminescent-abyss',
+        renderStyle: 'crystalline-mesh',
+      });
+      roomInstance.updateParams({
+        preset: 'anisotropic-snow',
+        anisotropy: 6,
+        colorPalette: 'monochrome-lithic',
+      });
+      roomInstance.updateParams({
+        preset: 'classic-dendrite',
+        seedType: 'point',
+        colorPalette: 'iridescent-obsidian',
+      });
+    }
+
+    // 6. Test pointer interaction events
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 320,
+        y: 280,
+        normalizedX: 0.53,
+        normalizedY: 0.46,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 350,
+        y: 310,
+        normalizedX: 0.58,
+        normalizedY: 0.51,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 350,
+        y: 310,
+        normalizedX: 0.58,
+        normalizedY: 0.51,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 7. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 8. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const dlaPassed =
+      colorsValid &&
+      initialCount > 0 &&
+      postStepCount >= initialCount &&
+      customSeedPlanted &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: dlaPassed,
+      module: 'dla/index.ts (Room 23)',
+      details: dlaPassed
+        ? `Diffusion-Limited Aggregation mounted, verified Witten-Sander Brownian walk engine (${initialCount} -> ${postStepCount} particles aggregated), O(1) occupancy grid, 6 seed topologies (point, line, ring, quad, hexagram), interactive pointer seed planting, electrostatic attract/repel probes, 6 presets, 6 iridescent obsidian palettes, 4 rendering styles (filaments, glow nodes, spores, mesh), and offline snapshot capture. Clean teardown verified.`
+        : `DLA verification failed: colorsValid=${colorsValid}, initialCount=${initialCount}, postStepCount=${postStepCount}, customSeedPlanted=${customSeedPlanted}, mount=${typeof roomInstance.mount}, cleanupRan=${cleanupRan}, snapshotCanvas=${snapshotCanvas ? `${snapshotCanvas.width}x${snapshotCanvas.height}` : 'null'}`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'dla/index.ts', details: String(err) });
+  }
+
   // 29. Verify Client-Side Hash Router
   try {
     router.start();

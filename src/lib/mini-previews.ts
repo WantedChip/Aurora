@@ -356,6 +356,25 @@ export class MiniPreviewManager {
 
         return { branches, walkers, pts, rMax, t: 0, growthProgress: numInitial };
       }
+      case 'voronoi': {
+        const seeds: { x: number; y: number; vx: number; vy: number; origX: number; origY: number }[] = [];
+        const numSeeds = 28;
+        for (let i = 0; i < numSeeds; i++) {
+          const theta = i * 2.399963229728653;
+          const r = Math.sqrt((i + 0.5) / numSeeds) * 0.42;
+          const sx = w * (0.5 + Math.cos(theta) * r);
+          const sy = h * (0.5 + Math.sin(theta) * r);
+          seeds.push({
+            x: sx,
+            y: sy,
+            vx: prng.nextFloat(-8, 8),
+            vy: prng.nextFloat(-8, 8),
+            origX: sx,
+            origY: sy,
+          });
+        }
+        return { seeds, t: 0 };
+      }
       default:
         return { t: 0 };
     }
@@ -1181,6 +1200,90 @@ export class MiniPreviewManager {
         ctx.beginPath();
         ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
         ctx.fill();
+
+        break;
+      }
+
+      case 'voronoi': {
+        state.t += dt * (isHovered ? 1.8 : 1.0);
+        ctx.fillStyle = '#090A0D';
+        ctx.fillRect(0, 0, w, h);
+
+        const seeds = state.seeds;
+        const count = seeds.length;
+
+        // Animate seeds with subtle organic breathing and hover interactive displacement
+        for (let i = 0; i < count; i++) {
+          const s = seeds[i];
+          const breath = Math.sin(state.t * 1.8 + i * 0.5) * 6;
+          s.x = s.origX + Math.cos(state.t * 0.8 + i) * breath;
+          s.y = s.origY + Math.sin(state.t * 0.8 + i) * breath;
+
+          if (isHovered) {
+            const dx = s.x - pointerX;
+            const dy = s.y - pointerY;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 60 && dist > 1) {
+              s.x += (dx / dist) * (60 - dist) * 0.15;
+              s.y += (dy / dist) * (60 - dist) * 0.15;
+            }
+          }
+        }
+
+        // Draw Voronoi Delaunay/neighbor web lattice
+        ctx.lineWidth = isHovered ? 1.5 : 1.0;
+        for (let i = 0; i < count; i++) {
+          const s1 = seeds[i];
+          // Find 3 closest seeds
+          const neighbors: { s: any; d: number }[] = [];
+          for (let j = 0; j < count; j++) {
+            if (i === j) continue;
+            const dist = Math.hypot(s1.x - seeds[j].x, s1.y - seeds[j].y);
+            neighbors.push({ s: seeds[j], d: dist });
+          }
+          neighbors.sort((a, b) => a.d - b.d);
+
+          for (let k = 0; k < Math.min(3, neighbors.length); k++) {
+            const s2 = neighbors[k].s;
+            if (s1.x < s2.x) {
+              const alpha = Math.max(0.15, 1.0 - neighbors[k].d / (w * 0.35));
+              ctx.strokeStyle = k === 0
+                ? `rgba(0, 255, 157, ${alpha * 0.8})`
+                : `rgba(0, 240, 255, ${alpha * 0.5})`;
+              ctx.beginPath();
+              ctx.moveTo(s1.x, s1.y);
+              ctx.lineTo(s2.x, s2.y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Draw seed nucleus centers and glowing halos
+        for (let i = 0; i < count; i++) {
+          const s = seeds[i];
+          const pulse = 1.0 + Math.sin(state.t * 3.0 + i) * 0.25;
+
+          // Glowing center
+          ctx.fillStyle = '#F4F6FB';
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 1.5 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Soft neon halo
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(0, 255, 157, 0.3)' : 'rgba(0, 240, 255, 0.3)';
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 3.5 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Pointer seed highlight if hovered
+        if (isHovered) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(pointerX, pointerY, 6.0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
         break;
       }

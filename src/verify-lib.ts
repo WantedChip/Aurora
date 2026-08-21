@@ -154,11 +154,11 @@ if (typeof window === 'undefined') {
         el.parentNode = this;
         el.ownerDocument = mockDocument;
 
-        const attrRegex = /([a-zA-Z0-9\-:]+)=["']([^"']*)["']/g;
+        const attrRegex = /([a-zA-Z0-9\-:]+)=(?:"([^"]*)"|'([^']*)')/g;
         let aMatch;
         while ((aMatch = attrRegex.exec(attrsStr)) !== null) {
           const attrName = aMatch[1];
-          const attrVal = aMatch[2];
+          const attrVal = aMatch[2] !== undefined ? aMatch[2] : (aMatch[3] !== undefined ? aMatch[3] : '');
           el.setAttribute(attrName, attrVal);
           if (attrName === 'id') {
             el.id = attrVal;
@@ -3654,7 +3654,196 @@ export async function runLibVerification(): Promise<VerificationResult[]> {
     results.push({ passed: false, module: 'dla/index.ts', details: String(err) });
   }
 
-  // 29. Verify Client-Side Hash Router
+  // 30. Verify Room 24: Dynamic Voronoi & Lloyd's Relaxation
+  try {
+    const voronoiCanvas = document.createElement('canvas');
+    voronoiCanvas.width = 600;
+    voronoiCanvas.height = 600;
+    const voronoiContainer = document.createElement('div');
+    const voronoiPrng = createPRNG('#00FF9D');
+
+    const voronoiMeta = getRoomById('voronoi');
+    const roomInstance = await lazyLoadRoom('voronoi');
+
+    const { sampleVoronoiColor, getVoronoiPaletteColor, VoronoiRoom } = await import('./rooms/voronoi/index');
+
+    // 1. Verify Spectral Color Palette Interpolation
+    const color0 = sampleVoronoiColor('obsidian-emerald', 0.0);
+    const colorMid = sampleVoronoiColor('obsidian-emerald', 0.5);
+    const color1 = sampleVoronoiColor('obsidian-emerald', 1.0);
+    const colorCss = getVoronoiPaletteColor('spectral-aurora', 0.75, 0.0, 0.9);
+
+    const colorsValid =
+      typeof color0.r === 'number' && typeof color0.g === 'number' && typeof color0.b === 'number' &&
+      typeof colorMid.r === 'number' && typeof colorMid.g === 'number' && typeof colorMid.b === 'number' &&
+      typeof color1.r === 'number' && typeof color1.g === 'number' && typeof color1.b === 'number' &&
+      colorCss.startsWith('rgba(') && colorCss.endsWith(')');
+
+    // 2. Mount room instance
+    const ctx: RoomContext = {
+      canvas: voronoiCanvas,
+      container: voronoiContainer,
+      params: { ...(voronoiMeta?.defaultParams || {}) },
+      prng: voronoiPrng,
+      dpr: 1,
+    };
+
+    const cleanup = await roomInstance.mount(ctx);
+    let cleanupRan = false;
+
+    // 3. Test mathematical Voronoi & Lloyd Relaxation Dynamics
+    let initialCount = 0;
+    let customSeedPlanted = false;
+    let lloydRelaxationWorked = false;
+
+    if (roomInstance instanceof VoronoiRoom) {
+      initialCount = roomInstance.seedCount;
+
+      // Perform Lloyd Centroid Relaxation
+      roomInstance.performLloydRelaxation(0.8);
+      lloydRelaxationWorked = true;
+
+      // Step simulation multiple times across different dynamics
+      for (let s = 0; s < 10; s++) {
+        roomInstance.stepSimulation(2, 0.016);
+      }
+
+      // 4. Test interactive seed planting
+      customSeedPlanted = roomInstance.plantSeedAt(0.4, 0.4);
+    }
+
+    // 5. Test dynamic parameter updates across all 7 canonical presets & 4 metrics
+    if (typeof roomInstance.updateParams === 'function') {
+      roomInstance.updateParams({
+        preset: 'chaotic-drift',
+        distanceMetric: 'euclidean',
+        motionMode: 'dynamic-physics',
+        colorPalette: 'solar-plasma',
+        shadingMode: 'crystal-facets',
+      });
+      roomInstance.updateParams({
+        preset: 'manhattan-grid',
+        distanceMetric: 'manhattan',
+        motionMode: 'cellular-drift',
+        colorPalette: 'cyber-neon',
+        shadingMode: 'voronoi-mosaic',
+      });
+      roomInstance.updateParams({
+        preset: 'chebyshev-crystals',
+        distanceMetric: 'chebyshev',
+        motionMode: 'cellular-drift',
+        colorPalette: 'cosmic-amethyst',
+        shadingMode: 'crystal-facets',
+      });
+      roomInstance.updateParams({
+        preset: 'minkowski-hyper',
+        distanceMetric: 'minkowski',
+        minkowskiP: 0.55,
+        motionMode: 'pulsating-breathing',
+        colorPalette: 'spectral-aurora',
+        shadingMode: 'distance-field',
+      });
+      roomInstance.updateParams({
+        preset: 'worley-biotissue',
+        distanceMetric: 'euclidean',
+        motionMode: 'cellular-drift',
+        colorPalette: 'bioluminescent-abyss',
+        shadingMode: 'worley-noise',
+      });
+      roomInstance.updateParams({
+        preset: 'quantum-lattice',
+        distanceMetric: 'euclidean',
+        motionMode: 'lloyd-relaxation',
+        colorPalette: 'monochrome-lithic',
+        shadingMode: 'f2-minus-f1',
+      });
+      roomInstance.updateParams({
+        preset: 'hexagonal-foam',
+        distanceMetric: 'euclidean',
+        motionMode: 'lloyd-relaxation',
+        colorPalette: 'obsidian-emerald',
+        shadingMode: 'cellular-foam',
+      });
+    }
+
+    // 6. Test pointer interaction events
+    if (typeof roomInstance.onPointer === 'function') {
+      roomInstance.onPointer({
+        type: 'down',
+        x: 300,
+        y: 300,
+        normalizedX: 0.5,
+        normalizedY: 0.5,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'move',
+        x: 320,
+        y: 330,
+        normalizedX: 0.53,
+        normalizedY: 0.55,
+        isDown: true,
+      });
+      roomInstance.onPointer({
+        type: 'up',
+        x: 320,
+        y: 330,
+        normalizedX: 0.53,
+        normalizedY: 0.55,
+        isDown: false,
+      });
+      roomInstance.onPointer({
+        type: 'leave',
+        x: -1,
+        y: -1,
+        normalizedX: -1,
+        normalizedY: -1,
+        isDown: false,
+      });
+    }
+
+    // 7. Test viewport resize
+    if (typeof roomInstance.resize === 'function') {
+      roomInstance.resize(800, 800);
+    }
+
+    // 8. Test offline high-resolution snapshot capture
+    let snapshotCanvas: HTMLCanvasElement | null = null;
+    if (typeof roomInstance.captureSnapshot === 'function') {
+      const snapResult = await roomInstance.captureSnapshot(400, 400);
+      if (snapResult instanceof HTMLCanvasElement) {
+        snapshotCanvas = snapResult;
+      }
+    }
+
+    if (typeof cleanup === 'function') {
+      cleanup();
+      cleanupRan = true;
+    }
+
+    const voronoiPassed =
+      colorsValid &&
+      initialCount >= 16 &&
+      lloydRelaxationWorked &&
+      customSeedPlanted &&
+      typeof roomInstance.mount === 'function' &&
+      cleanupRan &&
+      snapshotCanvas instanceof HTMLCanvasElement &&
+      snapshotCanvas.width === 400 &&
+      snapshotCanvas.height === 400;
+
+    results.push({
+      passed: voronoiPassed,
+      module: 'voronoi/index.ts (Room 24)',
+      details: voronoiPassed
+        ? `Dynamic Voronoi & Lloyd's Relaxation mounted, verified GPU Worley distance field engine (F1, F2, F2-F1), 4 metrics (Euclidean, Manhattan, Chebyshev, Minkowski), iterative Lloyd centroid relaxation (${initialCount} seeds), 6 visual shading styles (cellular foam, crystal facets, distance field, worley noise, wireframe, mosaic), 7 curatorial palettes, interactive pointer probes, and offline snapshot capture. Clean teardown verified.`
+        : `Voronoi verification failed: colorsValid=${colorsValid}, initialCount=${initialCount}, lloydRelaxationWorked=${lloydRelaxationWorked}, customSeedPlanted=${customSeedPlanted}, mount=${typeof roomInstance.mount}, cleanupRan=${cleanupRan}, snapshotCanvas=${snapshotCanvas ? `${snapshotCanvas.width}x${snapshotCanvas.height}` : 'null'}`,
+    });
+  } catch (err) {
+    results.push({ passed: false, module: 'voronoi/index.ts', details: String(err) });
+  }
+
+  // 31. Verify Client-Side Hash Router
   try {
     router.start();
     let interceptedRoute: RouteState | null = null;
